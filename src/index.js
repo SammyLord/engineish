@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Example usage
     function createExampleScene() {
+        engine.setSkyColor(engine.rgb(0, 213, 255))
         // Create a folder for organization
         const myFolder = engine.createFolder('MyFolder');
         engine.spawnBaseplate();

@@ -372,4 +372,131 @@ export class Engine {
             }
         }
     }
+
+    // Part manipulation methods
+    setPartColor(part, color) {
+        if (part instanceof Part) {
+            part.setColor(color);
+        } else {
+            console.warn('setPartColor: Invalid part provided');
+        }
+    }
+
+    setPartSize(part, width, height, depth) {
+        if (part instanceof Part) {
+            // Update the part's properties
+            part.properties.width = width;
+            part.properties.height = height;
+            part.properties.depth = depth;
+            
+            // Recreate the mesh with new dimensions
+            const oldMesh = part.mesh;
+            part.mesh = part.createMesh();
+            
+            // Copy position, rotation, and scale from old mesh
+            part.mesh.position.copy(oldMesh.position);
+            part.mesh.rotation.copy(oldMesh.rotation);
+            part.mesh.scale.copy(oldMesh.scale);
+            
+            // Replace the old mesh in the scene
+            this.scene.remove(oldMesh);
+            this.scene.add(part.mesh);
+            
+            // Update collision box
+            part.updateBoundingBox();
+        } else {
+            console.warn('setPartSize: Invalid part provided');
+        }
+    }
+
+    setPartTexture(part, textureUrl) {
+        if (part instanceof Part) {
+            const textureLoader = new THREE.TextureLoader();
+            textureLoader.load(textureUrl, (texture) => {
+                part.mesh.material.map = texture;
+                part.mesh.material.needsUpdate = true;
+            }, undefined, (error) => {
+                console.error('Error loading texture:', error);
+            });
+        } else {
+            console.warn('setPartTexture: Invalid part provided');
+        }
+    }
+
+    setPartPosition(part, x, y, z) {
+        if (part instanceof Part) {
+            // Update the part's properties
+            part.properties.position = { x, y, z };
+            
+            // Update the mesh position
+            part.mesh.position.set(x, y, z);
+            
+            // Update collision box
+            part.updateBoundingBox();
+        } else {
+            console.warn('setPartPosition: Invalid part provided');
+        }
+    }
+
+    setPartPositionRelative(part, deltaX, deltaY, deltaZ) {
+        if (part instanceof Part) {
+            // Get current position
+            const currentX = part.mesh.position.x;
+            const currentY = part.mesh.position.y;
+            const currentZ = part.mesh.position.z;
+            
+            // Calculate new position
+            const newX = currentX + deltaX;
+            const newY = currentY + deltaY;
+            const newZ = currentZ + deltaZ;
+            
+            // Update position using existing method
+            this.setPartPosition(part, newX, newY, newZ);
+        } else {
+            console.warn('setPartPositionRelative: Invalid part provided');
+        }
+    }
+
+    setPartSizeRelative(part, deltaWidth, deltaHeight, deltaDepth) {
+        if (part instanceof Part) {
+            // Get current dimensions
+            const currentWidth = part.properties.width || 1;
+            const currentHeight = part.properties.height || 1;
+            const currentDepth = part.properties.depth || 1;
+            
+            // Calculate new dimensions
+            const newWidth = Math.max(0.1, currentWidth + deltaWidth);  // Minimum size of 0.1
+            const newHeight = Math.max(0.1, currentHeight + deltaHeight);
+            const newDepth = Math.max(0.1, currentDepth + deltaDepth);
+            
+            // Update size using existing method
+            this.setPartSize(part, newWidth, newHeight, newDepth);
+        } else {
+            console.warn('setPartSizeRelative: Invalid part provided');
+        }
+    }
+
+    setSkyColor(color) {
+        this.scene.background = new THREE.Color(color);
+    }
+
+    setSkyTexture(textureUrl) {
+        const textureLoader = new THREE.TextureLoader();
+        textureLoader.load(textureUrl, (texture) => {
+            this.scene.background = texture;
+        }, undefined, (error) => {
+            console.error('Error loading sky texture:', error);
+        });
+    }
+
+    // Utility methods
+    rgb(r, g, b) {
+        // Ensure values are within valid range (0-255)
+        r = Math.max(0, Math.min(255, r));
+        g = Math.max(0, Math.min(255, g));
+        b = Math.max(0, Math.min(255, b));
+        
+        // Convert to hex number (not string)
+        return (r << 16) | (g << 8) | b;
+    }
 } 
