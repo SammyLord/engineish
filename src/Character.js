@@ -5,6 +5,7 @@ export class Character {
     constructor() {
         this.group = new THREE.Group();
         this.parts = {};
+        this.engine = null; // Will be set when spawned
         this.properties = {
             position: { x: 0, y: 0, z: 0 },
             rotation: { x: 0, y: 0, z: 0 },
@@ -127,11 +128,21 @@ export class Character {
         const moveSpeed = this.properties.moveSpeed;
         const moveVector = new THREE.Vector3();
 
-        // Apply movement based on input
-        if (this.keys.w) moveVector.z -= moveSpeed;
-        if (this.keys.s) moveVector.z += moveSpeed;
-        if (this.keys.a) moveVector.x -= moveSpeed;
-        if (this.keys.d) moveVector.x += moveSpeed;
+        // Get camera's forward and right vectors (ignoring vertical rotation)
+        const cameraDirection = new THREE.Vector3();
+        this.engine.camera.getWorldDirection(cameraDirection);
+        cameraDirection.y = 0; // Ignore vertical rotation
+        cameraDirection.normalize();
+
+        // Calculate right vector using cross product of up vector and forward vector
+        const cameraRight = new THREE.Vector3();
+        cameraRight.crossVectors(new THREE.Vector3(0, 1, 0), cameraDirection).normalize();
+
+        // Apply movement based on input, relative to camera direction
+        if (this.keys.w) moveVector.add(cameraDirection.multiplyScalar(moveSpeed));
+        if (this.keys.s) moveVector.add(cameraDirection.multiplyScalar(-moveSpeed));
+        if (this.keys.a) moveVector.add(cameraRight.multiplyScalar(moveSpeed));
+        if (this.keys.d) moveVector.add(cameraRight.multiplyScalar(-moveSpeed));
 
         // Handle jumping - only allow jumping when grounded
         if (this.keys.control && this.properties.isGrounded) {
@@ -188,7 +199,8 @@ export class Character {
         }
     }
 
-    spawn(scene) {
+    spawn(scene, engine) {
+        this.engine = engine; // Store engine reference
         scene.add(this.group);
         return this;
     }

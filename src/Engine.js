@@ -24,6 +24,23 @@ export class Engine {
         this.cameraOffset = new THREE.Vector3(0, 5, 10);
         this.cameraLookAt = new THREE.Vector3();
         this.cameraLerpFactor = 0.1; // Smoothing factor for camera movement
+        this.cameraDistance = 10; // Default camera distance
+        this.cameraMinDistance = 2; // Minimum camera distance
+        this.cameraMaxDistance = 50; // Maximum camera distance
+
+        // Setup OrbitControls
+        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+        this.controls.enableDamping = true;
+        this.controls.dampingFactor = 0.05;
+        this.controls.minDistance = 2;
+        this.controls.maxDistance = 50;
+        this.controls.maxPolarAngle = Math.PI / 2;
+        this.controls.target.set(0, 1.5, 0); // Look at player height
+
+        // Prevent context menu on right click
+        this.renderer.domElement.addEventListener('contextmenu', (event) => {
+            event.preventDefault();
+        });
 
         // Initialize core objects
         this.workspace = new Folder('Workspace');
@@ -66,33 +83,55 @@ export class Engine {
             this.localPlayer.setPosition(0, 2, 0);
             return;
         }
-        
-        // Calculate desired camera position
-        const targetCameraPos = new THREE.Vector3(
-            playerPos.x + this.cameraOffset.x,
-            playerPos.y + this.cameraOffset.y,
-            playerPos.z + this.cameraOffset.z
-        );
 
-        // Only update camera position if the difference is significant but not too large
-        const positionDiff = this.camera.position.distanceTo(targetCameraPos);
-        if (positionDiff > 0.01 && positionDiff < maxAllowedDistance) {
-            this.camera.position.lerp(targetCameraPos, this.cameraLerpFactor);
-        } else if (positionDiff >= maxAllowedDistance) {
-            // Reset camera if too far
-            this.camera.position.copy(new THREE.Vector3(0, 7, 10));
-        } else {
-            this.camera.position.copy(targetCameraPos);
-        }
-
-        // Calculate look target (slightly above player)
-        this.cameraLookAt.set(
+        // Calculate target position (slightly above player)
+        const targetPos = new THREE.Vector3(
             playerPos.x,
             playerPos.y + 1.5,
             playerPos.z
         );
 
-        this.camera.lookAt(this.cameraLookAt);
+        // Smoothly update OrbitControls target
+        this.controls.target.lerp(targetPos, this.cameraLerpFactor);
+
+        // Check for camera collisions
+        const cameraPos = this.camera.position;
+        const direction = new THREE.Vector3().subVectors(cameraPos, targetPos).normalize();
+        const distance = cameraPos.distanceTo(targetPos);
+
+        const raycaster = new THREE.Raycaster(
+            targetPos,
+            direction,
+            2, // Minimum distance
+            distance
+        );
+
+        const intersects = raycaster.intersectObjects(this.scene.children, true);
+        if (intersects.length > 0) {
+            // If we hit something, adjust camera position
+            const hitPoint = intersects[0].point;
+            const newDistance = hitPoint.distanceTo(targetPos) - 0.5; // Stay slightly before hit point
+            const newPos = new THREE.Vector3()
+                .subVectors(cameraPos, targetPos)
+                .normalize()
+                .multiplyScalar(newDistance)
+                .add(targetPos);
+            
+            this.camera.position.copy(newPos);
+        }
+
+        // Make character rotate with camera's horizontal rotation
+        const cameraDirection = new THREE.Vector3();
+        this.camera.getWorldDirection(cameraDirection);
+        // Only use the horizontal direction (ignore vertical rotation)
+        cameraDirection.y = 0;
+        cameraDirection.normalize();
+        
+        // Calculate the angle between the camera's direction and the world's forward direction
+        const angle = Math.atan2(cameraDirection.x, cameraDirection.z);
+        
+        // Apply the rotation to the character
+        this.localPlayer.group.rotation.y = angle;
     }
 
     animate() {
@@ -108,6 +147,9 @@ export class Engine {
             this.updateCamera();
         }
 
+        // Update OrbitControls
+        this.controls.update();
+
         this.renderer.render(this.scene, this.camera);
     }
 
@@ -119,7 +161,7 @@ export class Engine {
 
     // Core API methods
     spawn() {
-        this.localPlayer = this.starterCharacter.spawn(this.scene);
+        this.localPlayer = this.starterCharacter.spawn(this.scene, this);
         // Start character at a safe height
         this.localPlayer.setPosition(0, 2, 0);
         return this.localPlayer;
@@ -330,6 +372,22 @@ export class Engine {
                 player.group.position.copy(newPos);
                 // Update bounding box after position change
                 player.boundingBox.setFromObject(player.group);
+                
+                // Additional check to prevent falling through
+                if (!player.properties.isGrounded && player.properties.velocity.y < 0) {
+                    // If we're falling and not grounded, check if we're near a surface
+                    const groundCheck = new THREE.Vector3(player.group.position.x, player.group.position.y - 0.1, player.group.position.z);
+                    const raycaster = new THREE.Raycaster(groundCheck, new THREE.Vector3(0, -1, 0), 0.1, 1);
+                    const intersects = raycaster.intersectObjects(this.scene.children, true);
+                    
+                    if (intersects.length > 0) {
+                        // We're near a surface, prevent falling
+                        player.properties.isGrounded = true;
+                        player.properties.velocity.y = 0;
+                        player.group.position.y = intersects[0].point.y + player.boundingBox.getSize(new THREE.Vector3()).y / 2;
+                    }
+                }
+                
                 return; // Exit after applying the first valid resolution
             }
         }
