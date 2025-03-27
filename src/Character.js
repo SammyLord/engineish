@@ -14,6 +14,7 @@ export class Character {
             jumpForce: 0.3,
             gravity: 0.01,
             isJumping: false,
+            isGrounded: false,
             velocity: new THREE.Vector3()
         };
         this.setupCollision();
@@ -132,25 +133,20 @@ export class Character {
         if (this.keys.a) moveVector.x -= moveSpeed;
         if (this.keys.d) moveVector.x += moveSpeed;
 
-        // Apply existing velocity
-        moveVector.add(this.properties.velocity);
-
-        // Apply movement with velocity
-        this.group.position.add(moveVector);
-
         // Handle jumping
-        if (this.keys.control && !this.properties.isJumping) {
+        if (this.keys.control && this.properties.isGrounded) {
             this.properties.velocity.y = this.properties.jumpForce;
             this.properties.isJumping = true;
+            this.properties.isGrounded = false;
         }
 
-        // Only apply gravity when jumping/falling
-        if (this.properties.isJumping) {
+        // Apply gravity when not grounded
+        if (!this.properties.isGrounded) {
             this.properties.velocity.y -= this.properties.gravity;
         }
 
         // Apply air resistance and ground friction
-        if (this.properties.isJumping) {
+        if (!this.properties.isGrounded) {
             // Air resistance (stronger horizontal damping in air)
             this.properties.velocity.x *= 0.95;
             this.properties.velocity.z *= 0.95;
@@ -158,14 +154,20 @@ export class Character {
             // Ground friction (smoother horizontal damping on ground)
             this.properties.velocity.x *= 0.85;
             this.properties.velocity.z *= 0.85;
+            // Ensure we don't accumulate tiny amounts of vertical velocity while grounded
+            this.properties.velocity.y = Math.max(0, this.properties.velocity.y);
         }
 
-        // Ensure character doesn't fall below ground
-        if (this.group.position.y < 0) {
-            this.group.position.y = 0;
-            this.properties.velocity.y = 0;
-            this.properties.isJumping = false;
-        }
+        // Add velocity to movement vector
+        moveVector.add(this.properties.velocity);
+
+        // Store previous position for collision resolution
+        const previousPos = this.group.position.clone();
+
+        // Apply movement in separate axes to allow for better collision handling
+        this.group.position.x += moveVector.x;
+        this.group.position.y += moveVector.y;
+        this.group.position.z += moveVector.z;
 
         // Update bounding box for collision detection
         this.boundingBox.setFromObject(this.group);

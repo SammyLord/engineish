@@ -100,11 +100,13 @@ export class Engine {
         
         // Update character if it exists
         if (this.localPlayer) {
+            // Check collisions first
+            this.checkCollisions();
+            // Then update character
             this.localPlayer.update();
             this.updateCamera();
         }
 
-        this.checkCollisions();
         this.renderer.render(this.scene, this.camera);
     }
 
@@ -222,9 +224,9 @@ export class Engine {
         const resolutionAxes = [];
         
         // Determine if player is on top based on both direction and position
-        const isOnTop = direction.y > 0 && 
-                       Math.abs(direction.y) > 0.5 && // Reduced from 0.7 for more lenient top detection
-                       Math.abs(playerBox.min.y - partBox.max.y) < 0.2; // Increased from 0.1 for more forgiving ground detection
+        const verticalThreshold = 0.3; // Increased threshold for better top detection
+        const isOnTop = (direction.y > 0 && Math.abs(direction.y) > verticalThreshold) || 
+                       (Math.abs(playerBox.min.y - partBox.max.y) < 0.3 && player.properties.velocity.y <= 0);
 
         // Add Y-axis resolution first if we're on top of something
         if (isOnTop) {
@@ -238,6 +240,10 @@ export class Engine {
                 priority: 1,
                 amount: pushUpAmount
             });
+
+            // Set grounded state immediately when we detect we're on top
+            player.properties.isGrounded = true;
+            player.properties.isJumping = false;
         }
         // Otherwise, add all valid axes
         else {
@@ -268,6 +274,9 @@ export class Engine {
                     amount: direction.z > 0 ? overlapZ : -overlapZ
                 });
             }
+
+            // If we're not on top, we're not grounded
+            player.properties.isGrounded = false;
         }
 
         // Sort resolutions by priority and overlap (smaller overlap first)
@@ -285,6 +294,7 @@ export class Engine {
             if (resolution.axis === 'y') {
                 // Only reset jumping and velocity if we're actually landing (not just brushing the side)
                 if (isOnTop) {
+                    player.properties.isGrounded = true;
                     player.properties.isJumping = false;
                     player.properties.velocity.y = 0; // Reset Y velocity when grounded
 
