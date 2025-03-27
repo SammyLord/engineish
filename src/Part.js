@@ -211,8 +211,8 @@ export class Part {
             this.properties.scale.z
         );
 
-        // Update bounding box
-        this.boundingBox.setFromObject(this.mesh);
+        // Update bounding box using our custom handler
+        this.updateBoundingBox();
     }
 
     // Property setters

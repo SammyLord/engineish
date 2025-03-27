@@ -122,7 +122,7 @@ export class Engine {
         return this.localPlayer;
     }
 
-    spawnBaseplate(color = 0x00ff00, yPos = -0.5, xSize = 100, zSize = 100) {
+    spawnBaseplate(color = 0x00ff00, yPos = 0, xSize = 100, zSize = 100) {
         const baseplate = new Part('box', { 
             width: xSize, 
             height: 1, 
@@ -130,7 +130,7 @@ export class Engine {
             color: color,
             canCollide: true
         });
-        baseplate.mesh.position.y = yPos; // Position slightly below 0 so player stands on top
+        baseplate.mesh.position.y = yPos - 0.5; // Position half height down so top surface is at yPos
         return this.addPart(baseplate);
     }
 
@@ -221,14 +221,22 @@ export class Engine {
         // Calculate all possible resolution axes
         const resolutionAxes = [];
         
+        // Determine if player is on top based on both direction and position
+        const isOnTop = direction.y > 0 && 
+                       Math.abs(direction.y) > 0.5 && // Reduced from 0.7 for more lenient top detection
+                       Math.abs(playerBox.min.y - partBox.max.y) < 0.2; // Increased from 0.1 for more forgiving ground detection
+
         // Add Y-axis resolution first if we're on top of something
-        const isOnTop = direction.y > 0 && Math.abs(direction.y) > 0.7;
         if (isOnTop) {
+            // When on top, push up just enough to rest on the surface
+            const surfaceY = partBox.max.y;
+            const pushUpAmount = surfaceY - playerBox.min.y;
+            
             resolutionAxes.push({
                 axis: 'y',
                 overlap: overlapY,
                 priority: 1,
-                amount: overlapY
+                amount: pushUpAmount
             });
         }
         // Otherwise, add all valid axes
@@ -278,7 +286,7 @@ export class Engine {
                 // Only reset jumping and velocity if we're actually landing (not just brushing the side)
                 if (isOnTop) {
                     player.properties.isJumping = false;
-                    player.properties.velocity.y = 0;
+                    player.properties.velocity.y = 0; // Reset Y velocity when grounded
 
                     if (slopeAngle > maxSlopeAngle) {
                         // Smoother sliding behavior
@@ -300,7 +308,7 @@ export class Engine {
             }
 
             // Apply the position change if it's reasonable
-            const maxPositionChange = isOnTop ? 0.5 : 2; // Smaller threshold when on top
+            const maxPositionChange = isOnTop ? 0.2 : 0.5; // Slightly increased threshold for top collision
             const positionChange = newPos.distanceTo(originalPos);
             
             if (positionChange <= maxPositionChange) {
@@ -316,7 +324,7 @@ export class Engine {
     // Add a part to the collision system
     addToCollisionSystem(part) {
         if (part instanceof Part && part.getCanCollide()) {
-            part.boundingBox.setFromObject(part.mesh);
+            part.updateBoundingBox();
             this.collidableParts.add(part);
         }
     }
