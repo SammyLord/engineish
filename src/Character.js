@@ -133,19 +133,18 @@ export class Character {
         if (this.keys.a) moveVector.x -= moveSpeed;
         if (this.keys.d) moveVector.x += moveSpeed;
 
-        // Handle jumping
+        // Handle jumping - only allow jumping when grounded
         if (this.keys.control && this.properties.isGrounded) {
             this.properties.velocity.y = this.properties.jumpForce;
             this.properties.isJumping = true;
             this.properties.isGrounded = false;
         }
 
-        // Always apply gravity unless we're grounded
-        // This ensures we fall when walking off edges
+        // Apply gravity when in the air
         if (!this.properties.isGrounded) {
             this.properties.velocity.y -= this.properties.gravity;
             // Cap falling speed to prevent tunneling through objects
-            this.properties.velocity.y = Math.max(this.properties.velocity.y, -1.0);
+            this.properties.velocity.y = Math.max(this.properties.velocity.y, -0.5);
         }
 
         // Apply air resistance and ground friction
@@ -157,27 +156,35 @@ export class Character {
             // Ground friction (smoother horizontal damping on ground)
             this.properties.velocity.x *= 0.85;
             this.properties.velocity.z *= 0.85;
-            // Reset vertical velocity when grounded
-            this.properties.velocity.y = 0;
+            // Only reset vertical velocity when grounded and not trying to jump
+            if (!this.keys.control) {
+                this.properties.velocity.y = 0;
+            }
         }
 
         // Add velocity to movement vector
         moveVector.add(this.properties.velocity);
 
-        // Apply movement in separate axes to allow for better collision handling
-        this.group.position.x += moveVector.x;
-        this.group.position.y += moveVector.y;
-        this.group.position.z += moveVector.z;
-
-        // Update bounding box for collision detection
-        this.boundingBox.setFromObject(this.group);
-
-        // If we're falling very fast, we might be falling through objects
-        // Log for debugging
-        if (this.properties.velocity.y < -0.5) {
-            console.log('Falling speed:', this.properties.velocity.y);
-            console.log('Position:', this.group.position.y);
-            console.log('Grounded:', this.properties.isGrounded);
+        // Break down movement into smaller steps if moving fast
+        const maxStep = 0.1; // Maximum movement per step
+        const steps = Math.ceil(Math.max(
+            Math.abs(moveVector.x),
+            Math.abs(moveVector.y),
+            Math.abs(moveVector.z)
+        ) / maxStep); // Number of steps based on largest movement component
+        
+        if (steps > 1) {
+            const stepVector = moveVector.clone().divideScalar(steps);
+            for (let i = 0; i < steps; i++) {
+                this.group.position.add(stepVector);
+                this.boundingBox.setFromObject(this.group);
+            }
+        } else {
+            // Apply movement in separate axes for better collision handling
+            this.group.position.x += moveVector.x;
+            this.group.position.y += moveVector.y;
+            this.group.position.z += moveVector.z;
+            this.boundingBox.setFromObject(this.group);
         }
     }
 

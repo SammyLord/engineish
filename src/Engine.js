@@ -100,10 +100,11 @@ export class Engine {
         
         // Update character if it exists
         if (this.localPlayer) {
-            // Check collisions first
-            this.checkCollisions();
-            // Then update character
+            // First update character (apply forces, input, etc)
             this.localPlayer.update();
+            // Then check and resolve collisions
+            this.checkCollisions();
+            // Finally update camera
             this.updateCamera();
         }
 
@@ -230,7 +231,7 @@ export class Engine {
         // Determine if player is on top based on both direction and position
         const verticalThreshold = 0.3; // Increased threshold for better top detection
         const isOnTop = (direction.y > 0 && Math.abs(direction.y) > verticalThreshold) || 
-                       (Math.abs(playerBox.min.y - partBox.max.y) < 0.3 && player.properties.velocity.y <= 0);
+                       (Math.abs(playerBox.min.y - partBox.max.y) < 0.5 && player.properties.velocity.y <= 0);
 
         // Add Y-axis resolution first if we're on top of something
         if (isOnTop) {
@@ -322,7 +323,7 @@ export class Engine {
             }
 
             // Apply the position change if it's reasonable
-            const maxPositionChange = isOnTop ? 0.2 : 0.5; // Slightly increased threshold for top collision
+            const maxPositionChange = isOnTop ? 0.5 : 1.0; // Increased thresholds for high-speed collisions
             const positionChange = newPos.distanceTo(originalPos);
             
             if (positionChange <= maxPositionChange) {
