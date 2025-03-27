@@ -91,13 +91,21 @@ export class Engine {
             playerPos.z
         );
 
-        // Smoothly update OrbitControls target
-        this.controls.target.lerp(targetPos, this.cameraLerpFactor);
+        // Get current camera offset from target
+        const currentOffset = new THREE.Vector3().subVectors(this.camera.position, this.controls.target);
+        
+        // Calculate new camera position while maintaining rotation
+        const newCameraPos = new THREE.Vector3().addVectors(targetPos, currentOffset);
+        
+        // Update OrbitControls target
+        this.controls.target.copy(targetPos);
+        
+        // Update camera position
+        this.camera.position.copy(newCameraPos);
 
         // Check for camera collisions
-        const cameraPos = this.camera.position;
-        const direction = new THREE.Vector3().subVectors(cameraPos, targetPos).normalize();
-        const distance = cameraPos.distanceTo(targetPos);
+        const direction = new THREE.Vector3().subVectors(this.camera.position, targetPos).normalize();
+        const distance = this.camera.position.distanceTo(targetPos);
 
         const raycaster = new THREE.Raycaster(
             targetPos,
@@ -112,7 +120,7 @@ export class Engine {
             const hitPoint = intersects[0].point;
             const newDistance = hitPoint.distanceTo(targetPos) - 0.5; // Stay slightly before hit point
             const newPos = new THREE.Vector3()
-                .subVectors(cameraPos, targetPos)
+                .subVectors(this.camera.position, targetPos)
                 .normalize()
                 .multiplyScalar(newDistance)
                 .add(targetPos);
