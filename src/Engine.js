@@ -168,10 +168,21 @@ export class Engine {
     }
 
     // Core API methods
-    spawn() {
+    spawn(startX = -32, startY = 4, startZ = 20) {
+        // Create and spawn the character
         this.localPlayer = this.starterCharacter.spawn(this.scene, this);
-        // Start character at a safe height
-        this.localPlayer.setPosition(0, 2, 0);
+        
+        // Wait for the next frame to ensure everything is initialized
+        requestAnimationFrame(() => {
+            // Set the initial position
+            this.localPlayer.setPosition(startX, startY, startZ);
+            
+            // Update the camera to look at the new position
+            this.camera.position.set(startX, startY + 5, startZ + 10);
+            this.camera.lookAt(startX, startY, startZ);
+            this.controls.target.set(startX, startY, startZ);
+        });
+        
         return this.localPlayer;
     }
 
@@ -299,6 +310,7 @@ export class Engine {
             // Set grounded state immediately when we detect we're on top
             player.properties.isGrounded = true;
             player.properties.isJumping = false;
+            player.properties.velocity.y = 0; // Reset vertical velocity when grounded
         }
         // Otherwise, add all valid axes
         else {
@@ -340,69 +352,38 @@ export class Engine {
             return a.overlap - b.overlap;
         });
 
-        // Try each resolution axis until we find one that works
-        for (const resolution of resolutionAxes) {
-            const newPos = player.group.position.clone();
-            newPos[resolution.axis] += resolution.amount;
-
-            // Apply special handling for Y-axis
-            if (resolution.axis === 'y') {
-                // Only reset jumping and velocity if we're actually landing (not just brushing the side)
-                if (isOnTop) {
-                    player.properties.isGrounded = true;
-                    player.properties.isJumping = false;
-                    player.properties.velocity.y = 0; // Reset Y velocity when grounded
-
-                    if (slopeAngle > maxSlopeAngle) {
-                        // Smoother sliding behavior
-                        const slideDir = new THREE.Vector3(direction.x, 0, direction.z).normalize();
-                        const slideSpeed = 0.05; // Reduced from 0.1 for smoother movement
-                        
-                        // Apply sliding with reduced speed
-                        player.properties.velocity.x = -slideDir.x * slideSpeed;
-                        player.properties.velocity.z = -slideDir.z * slideSpeed;
-                    } else {
-                        // When standing on something, gradually stop horizontal movement
-                        player.properties.velocity.x *= 0.8;
-                        player.properties.velocity.z *= 0.8;
-                    }
-                } else if (direction.y < 0) {
-                    // If we're hitting something from below, stop upward velocity
-                    player.properties.velocity.y = Math.min(0, player.properties.velocity.y);
-                }
-            }
-
-            // Apply the position change if it's reasonable
-            const maxPositionChange = isOnTop ? 0.5 : 1.0; // Increased thresholds for high-speed collisions
-            const positionChange = newPos.distanceTo(originalPos);
+        // If we have a collision and position history, rewind to the last safe position
+        if (player.positionHistory && player.positionHistory.length > 0) {
+            // Get the last safe position (3 frames ago)
+            const lastSafePosition = player.positionHistory[0];
             
-            if (positionChange <= maxPositionChange) {
-                player.group.position.copy(newPos);
-                // Update bounding box after position change
+            // Only rewind if we're not on top of something (to prevent falling through)
+            if (!isOnTop) {
+                // Store current velocity before rewind
+                const currentVelocity = player.properties.velocity.clone();
+                
+                // Rewind to the last safe position
+                player.group.position.copy(lastSafePosition);
                 player.boundingBox.setFromObject(player.group);
                 
-                // Additional check to prevent falling through
-                if (!player.properties.isGrounded && player.properties.velocity.y < 0) {
-                    // If we're falling and not grounded, check if we're near a surface
-                    const groundCheck = new THREE.Vector3(player.group.position.x, player.group.position.y - 0.1, player.group.position.z);
-                    const raycaster = new THREE.Raycaster(groundCheck, new THREE.Vector3(0, -1, 0), 0.1, 1);
-                    const intersects = raycaster.intersectObjects(this.scene.children, true);
-                    
-                    if (intersects.length > 0) {
-                        // We're near a surface, prevent falling
-                        player.properties.isGrounded = true;
-                        player.properties.velocity.y = 0;
-                        player.group.position.y = intersects[0].point.y + player.boundingBox.getSize(new THREE.Vector3()).y / 2;
-                    }
+                // Reset velocity in the direction of collision
+                if (Math.abs(direction.x) > 0.1) player.properties.velocity.x = 0;
+                if (Math.abs(direction.z) > 0.1) player.properties.velocity.z = 0;
+                
+                // Keep vertical velocity if we're falling
+                if (currentVelocity.y < 0) {
+                    player.properties.velocity.y = currentVelocity.y;
                 }
                 
-                return; // Exit after applying the first valid resolution
+                // Clear position history to prevent multiple rewinds
+                player.positionHistory = [];
+                
+                // Add the current position to history to prevent immediate rewind
+                player.positionHistory.push(player.group.position.clone());
             }
         }
 
-        // If no valid resolution found, revert to original position
-        player.group.position.copy(originalPos);
-        // Update bounding box after position revert
+        // Update the player's bounding box one final time
         player.boundingBox.setFromObject(player.group);
     }
 

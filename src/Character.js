@@ -16,8 +16,18 @@ export class Character {
             gravity: 0.01,
             isJumping: false,
             isGrounded: false,
-            velocity: new THREE.Vector3()
+            velocity: new THREE.Vector3(),
+            maxFallSpeed: 0.5,
+            groundCheckDistance: 0.1,
+            collisionBuffer: 0.001,
+            bounceFactor: 0.5,
+            airResistance: 0.95,
+            groundFriction: 0.85,
+            maxVelocity: 0.5
         };
+        // Add position history array to store last 3 positions
+        this.positionHistory = [];
+        this.maxHistoryLength = 3;
         this.setupCollision();
         this.createDefaultCharacter();
         this.setupControls();
@@ -125,6 +135,12 @@ export class Character {
     }
 
     update() {
+        // Store current position in history before any movement
+        this.positionHistory.push(this.group.position.clone());
+        if (this.positionHistory.length > this.maxHistoryLength) {
+            this.positionHistory.shift(); // Remove oldest position
+        }
+
         const moveSpeed = this.properties.moveSpeed;
         const moveVector = new THREE.Vector3();
 
@@ -155,48 +171,39 @@ export class Character {
         if (!this.properties.isGrounded) {
             this.properties.velocity.y -= this.properties.gravity;
             // Cap falling speed to prevent tunneling through objects
-            this.properties.velocity.y = Math.max(this.properties.velocity.y, -0.5);
+            this.properties.velocity.y = Math.max(this.properties.velocity.y, -this.properties.maxFallSpeed);
         }
 
         // Apply air resistance and ground friction
         if (!this.properties.isGrounded) {
             // Air resistance (stronger horizontal damping in air)
-            this.properties.velocity.x *= 0.95;
-            this.properties.velocity.z *= 0.95;
+            this.properties.velocity.x *= this.properties.airResistance;
+            this.properties.velocity.z *= this.properties.airResistance;
         } else {
             // Ground friction (smoother horizontal damping on ground)
-            this.properties.velocity.x *= 0.85;
-            this.properties.velocity.z *= 0.85;
-            // Only reset vertical velocity when grounded and not trying to jump
-            if (!this.keys.control) {
-                this.properties.velocity.y = 0;
-            }
+            this.properties.velocity.x *= this.properties.groundFriction;
+            this.properties.velocity.z *= this.properties.groundFriction;
+        }
+
+        // Cap maximum velocity
+        const horizontalVelocity = Math.sqrt(
+            this.properties.velocity.x * this.properties.velocity.x + 
+            this.properties.velocity.z * this.properties.velocity.z
+        );
+        if (horizontalVelocity > this.properties.maxVelocity) {
+            const scale = this.properties.maxVelocity / horizontalVelocity;
+            this.properties.velocity.x *= scale;
+            this.properties.velocity.z *= scale;
         }
 
         // Add velocity to movement vector
         moveVector.add(this.properties.velocity);
 
-        // Break down movement into smaller steps if moving fast
-        const maxStep = 0.1; // Maximum movement per step
-        const steps = Math.ceil(Math.max(
-            Math.abs(moveVector.x),
-            Math.abs(moveVector.y),
-            Math.abs(moveVector.z)
-        ) / maxStep); // Number of steps based on largest movement component
-        
-        if (steps > 1) {
-            const stepVector = moveVector.clone().divideScalar(steps);
-            for (let i = 0; i < steps; i++) {
-                this.group.position.add(stepVector);
-                this.boundingBox.setFromObject(this.group);
-            }
-        } else {
-            // Apply movement in separate axes for better collision handling
-            this.group.position.x += moveVector.x;
-            this.group.position.y += moveVector.y;
-            this.group.position.z += moveVector.z;
-            this.boundingBox.setFromObject(this.group);
-        }
+        // Apply movement
+        this.group.position.x += moveVector.x;
+        this.group.position.y += moveVector.y;
+        this.group.position.z += moveVector.z;
+        this.boundingBox.setFromObject(this.group);
     }
 
     spawn(scene, engine) {
