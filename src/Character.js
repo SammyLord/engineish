@@ -123,12 +123,23 @@ export class Character {
     }
 
     update() {
-        // Handle movement
+        // Store previous position for collision resolution
+        const previousPosition = this.group.position.clone();
+
+        // Calculate movement vector based on input
+        const moveVector = new THREE.Vector3();
         const moveSpeed = this.properties.moveSpeed;
-        if (this.keys.w) this.group.position.z -= moveSpeed;
-        if (this.keys.s) this.group.position.z += moveSpeed;
-        if (this.keys.a) this.group.position.x -= moveSpeed;
-        if (this.keys.d) this.group.position.x += moveSpeed;
+        
+        if (this.keys.w) moveVector.z -= moveSpeed;
+        if (this.keys.s) moveVector.z += moveSpeed;
+        if (this.keys.a) moveVector.x -= moveSpeed;
+        if (this.keys.d) moveVector.x += moveSpeed;
+
+        // Apply existing velocity
+        moveVector.add(this.properties.velocity);
+
+        // Apply movement with velocity
+        this.group.position.add(moveVector);
 
         // Handle jumping
         if (this.keys.control && !this.properties.isJumping) {
@@ -138,9 +149,22 @@ export class Character {
 
         // Apply gravity
         this.properties.velocity.y -= this.properties.gravity;
+        
+        // Apply vertical movement
         this.group.position.y += this.properties.velocity.y;
+        
+        // Apply friction to horizontal velocity
+        this.properties.velocity.x *= 0.9;
+        this.properties.velocity.z *= 0.9;
 
-        // Update bounding box
+        // Ensure character doesn't fall below ground
+        if (this.group.position.y < 0) {
+            this.group.position.y = 0;
+            this.properties.velocity.y = 0;
+            this.properties.isJumping = false;
+        }
+
+        // Update bounding box for collision detection
         this.boundingBox.setFromObject(this.group);
     }
 
@@ -188,9 +212,15 @@ export class Character {
     }
 
     checkCollision(otherPart) {
-        if (!this.properties.canCollide || !otherPart.getCanCollide()) {
+        if (!this.properties.canCollide || !otherPart.properties.canCollide) {
             return false;
         }
         return this.boundingBox.intersectsBox(otherPart.boundingBox);
+    }
+
+    // Add method to restore previous position
+    restorePreviousPosition(previousPos) {
+        this.group.position.copy(previousPos);
+        this.boundingBox.setFromObject(this.group);
     }
 } 

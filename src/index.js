@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
             color: 0xcccccc,
             canCollide: true
         });
-        // Position walls relative to ground level (y=0)
+        walls.setupCollision(); // Ensure collision is set up
         walls.setPosition(0, 1.5, 0); // Half height = 1.5
         engine.addPart(walls);
         house.add(walls);
@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
             color: 0x8b4513,
             canCollide: true
         });
-        // Position roof on top of walls
+        roof.setupCollision(); // Ensure collision is set up
         roof.setPosition(0, 4, 0); // walls height (3) + half roof height (1)
         engine.addPart(roof);
         house.add(roof);

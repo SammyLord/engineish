@@ -43,6 +43,7 @@ export class Engine {
 
         // Initialize collision system
         this.collidableParts = new Set();
+        this.groups = new Set(); // Initialize groups Set
 
         // Add baseplate by default with gray color
         this.baseplate = this.addBaseplate(0x808080);
@@ -151,6 +152,8 @@ export class Engine {
     createGroup(name) {
         const group = new Group(name);
         this.scene.add(group.group);
+        // Add all collidable parts from the group to the collision system
+        this.addGroupToCollisionSystem(group);
         return group;
     }
 
@@ -168,8 +171,21 @@ export class Engine {
         // Update player's bounding box
         this.localPlayer.boundingBox.setFromObject(this.localPlayer.group);
 
-        // Check collisions between player and all collidable parts
-        for (const part of this.collidableParts) {
+        // Store the initial position in case we need to revert
+        const initialPosition = this.localPlayer.group.position.clone();
+        
+        // Combine all collidable parts into one array for checking
+        const allCollidableParts = [...this.collidableParts];
+        
+        // Add parts from groups
+        for (const group of this.groups) {
+            // Update collision boxes for the group's parts
+            group.updateCollisionBoxes();
+            allCollidableParts.push(...group.getCollidableParts());
+        }
+
+        // Check collisions with all parts
+        for (const part of allCollidableParts) {
             if (part.checkCollision(this.localPlayer)) {
                 this.handleCollision(this.localPlayer, part);
             }
@@ -204,49 +220,72 @@ export class Engine {
         // Find the smallest overlap to determine which axis to resolve
         const minOverlap = Math.min(overlapX, overlapY, overlapZ);
         
-        // Store current position for safety check
-        const originalPos = player.group.position.clone();
-        let newPos = originalPos.clone();
-
-        if (minOverlap === overlapX) {
-            // Resolve X-axis collision
-            if (playerCenter.x > partCenter.x) {
-                newPos.x += overlapX * 0.5;
-            } else {
-                newPos.x -= overlapX * 0.5;
-            }
-        } else if (minOverlap === overlapY) {
-            // Resolve Y-axis collision
-            if (playerCenter.y > partCenter.y) {
-                newPos.y += overlapY * 0.5;
-                // Reset jumping state when landing
+        // Calculate direction from part to player
+        const direction = new THREE.Vector3().subVectors(playerCenter, partCenter).normalize();
+        
+        // Calculate the slope angle for Y-axis collisions
+        const slopeAngle = Math.abs(Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z)));
+        const maxSlopeAngle = Math.PI / 4; // 45 degrees
+        
+        // Determine primary collision axis based on direction and overlap
+        let collisionAxis = '';
+        let collisionAmount = 0;
+        
+        if (minOverlap === overlapY && Math.abs(direction.y) > 0.1) {
+            collisionAxis = 'y';
+            collisionAmount = direction.y > 0 ? overlapY : -overlapY;
+            
+            // Handle landing on top of objects
+            if (direction.y > 0) {
                 player.properties.isJumping = false;
                 player.properties.velocity.y = 0;
-            } else {
-                newPos.y -= overlapY * 0.5;
+                
+                // If on a slope, slide down if too steep
+                if (slopeAngle > maxSlopeAngle) {
+                    // Calculate slide direction
+                    const slideDir = new THREE.Vector3(direction.x, 0, direction.z).normalize();
+                    player.properties.velocity.x = -slideDir.x * 0.1;
+                    player.properties.velocity.z = -slideDir.z * 0.1;
+                } else {
+                    // On a walkable slope or flat surface
+                    player.properties.velocity.x = 0;
+                    player.properties.velocity.z = 0;
+                }
             }
-        } else {
-            // Resolve Z-axis collision
-            if (playerCenter.z > partCenter.z) {
-                newPos.z += overlapZ * 0.5;
-            } else {
-                newPos.z -= overlapZ * 0.5;
-            }
+        } else if (minOverlap === overlapX && Math.abs(direction.x) > 0.5) {
+            collisionAxis = 'x';
+            collisionAmount = direction.x > 0 ? overlapX : -overlapX;
+            player.properties.velocity.x = 0;
+        } else if (minOverlap === overlapZ && Math.abs(direction.z) > 0.5) {
+            collisionAxis = 'z';
+            collisionAmount = direction.z > 0 ? overlapZ : -overlapZ;
+            player.properties.velocity.z = 0;
         }
 
-        // Safety check - don't allow extreme position changes
-        const maxPositionChange = 5;
-        if (newPos.distanceTo(originalPos) < maxPositionChange) {
-            player.setPosition(newPos.x, newPos.y, newPos.z);
-        } else {
-            // If position change is too extreme, reset to a safe position
-            player.setPosition(0, 2, 0);
+        // Apply collision response if we found a valid axis
+        if (collisionAxis) {
+            const newPos = player.group.position.clone();
+            
+            // Apply the collision response
+            newPos[collisionAxis] += collisionAmount;
+            
+            // Check if the position change is reasonable
+            const maxPositionChange = 2;
+            if (newPos.distanceTo(player.group.position) < maxPositionChange) {
+                player.setPosition(newPos.x, newPos.y, newPos.z);
+            } else {
+                // If change is too extreme, try to find a safe position
+                const safePos = player.group.position.clone();
+                safePos.y = Math.max(safePos.y, 0); // Keep above ground
+                player.setPosition(safePos.x, safePos.y, safePos.z);
+            }
         }
     }
 
     // Add a part to the collision system
     addToCollisionSystem(part) {
         if (part instanceof Part && part.getCanCollide()) {
+            part.boundingBox.setFromObject(part.mesh);
             this.collidableParts.add(part);
         }
     }
@@ -254,5 +293,25 @@ export class Engine {
     // Remove a part from the collision system
     removeFromCollisionSystem(part) {
         this.collidableParts.delete(part);
+    }
+
+    // Add a group's parts to the collision system
+    addGroupToCollisionSystem(group) {
+        if (group instanceof Group) {
+            this.groups.add(group);
+            // Update collision boxes for all parts in the group
+            group.updateCollisionBoxes();
+        }
+    }
+
+    // Remove a group's parts from the collision system
+    removeGroupFromCollisionSystem(group) {
+        if (group instanceof Group) {
+            this.groups.delete(group);
+            // Remove any collidable parts from this group
+            for (const part of group.getCollidableParts()) {
+                this.collidableParts.delete(part);
+            }
+        }
     }
 } 
