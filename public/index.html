@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Engineish - THREE.js ROBLOX-like Engine</title>
+    <style>
+        /* Reset and base styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+        }
+
+        /* Engine container styles */
+        #engineish-root {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            isolation: isolate;
+        }
+
+        #engineish-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        #engineish-container canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Prevent any external styles from affecting our container */
+        #engineish-root * {
+            all: revert;
+        }
+    </style>
+</head>
+<body>
+    <div id="engineish-root">
+        <div id="engineish-container"></div>
+    </div>
+    <script src="/bundle.js"></script>
+</body>
+</html> 
