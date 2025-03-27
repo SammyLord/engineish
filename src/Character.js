@@ -140,9 +140,12 @@ export class Character {
             this.properties.isGrounded = false;
         }
 
-        // Apply gravity when not grounded
+        // Always apply gravity unless we're grounded
+        // This ensures we fall when walking off edges
         if (!this.properties.isGrounded) {
             this.properties.velocity.y -= this.properties.gravity;
+            // Cap falling speed to prevent tunneling through objects
+            this.properties.velocity.y = Math.max(this.properties.velocity.y, -1.0);
         }
 
         // Apply air resistance and ground friction
@@ -154,15 +157,12 @@ export class Character {
             // Ground friction (smoother horizontal damping on ground)
             this.properties.velocity.x *= 0.85;
             this.properties.velocity.z *= 0.85;
-            // Ensure we don't accumulate tiny amounts of vertical velocity while grounded
-            this.properties.velocity.y = Math.max(0, this.properties.velocity.y);
+            // Reset vertical velocity when grounded
+            this.properties.velocity.y = 0;
         }
 
         // Add velocity to movement vector
         moveVector.add(this.properties.velocity);
-
-        // Store previous position for collision resolution
-        const previousPos = this.group.position.clone();
 
         // Apply movement in separate axes to allow for better collision handling
         this.group.position.x += moveVector.x;
@@ -171,6 +171,14 @@ export class Character {
 
         // Update bounding box for collision detection
         this.boundingBox.setFromObject(this.group);
+
+        // If we're falling very fast, we might be falling through objects
+        // Log for debugging
+        if (this.properties.velocity.y < -0.5) {
+            console.log('Falling speed:', this.properties.velocity.y);
+            console.log('Position:', this.group.position.y);
+            console.log('Grounded:', this.properties.isGrounded);
+        }
     }
 
     spawn(scene) {

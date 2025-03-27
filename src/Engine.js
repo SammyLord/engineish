@@ -161,6 +161,10 @@ export class Engine {
     checkCollisions() {
         if (!this.localPlayer) return;
 
+        // Reset grounded state at the start of each frame
+        // This ensures we only stay grounded if we're actually touching something
+        this.localPlayer.properties.isGrounded = false;
+
         // Update player's bounding box
         this.localPlayer.boundingBox.setFromObject(this.localPlayer.group);
 
