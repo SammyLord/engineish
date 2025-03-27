@@ -499,4 +499,117 @@ export class Engine {
         // Convert to hex number (not string)
         return (r << 16) | (g << 8) | b;
     }
+
+    // ROBLOX XML parsing methods
+    loadRobloxPlaceXML(xmlContent) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(xmlContent, 'text/xml');
+        this.parseRobloxXML(doc, true);
+    }
+
+    loadRobloxModelXML(xmlContent) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(xmlContent, 'text/xml');
+        this.parseRobloxXML(doc, false);
+    }
+
+    parseRobloxXML(doc, isPlace) {
+        // Get the root element (either RobloxPlace or RobloxModel)
+        const root = doc.documentElement;
+        if (!root) return;
+
+        // Process all Part elements
+        const parts = root.getElementsByTagName('Part');
+        for (const partElement of parts) {
+            this.createPartFromXML(partElement);
+        }
+
+        // Process all Model elements recursively
+        const models = root.getElementsByTagName('Model');
+        for (const modelElement of models) {
+            this.processModelElement(modelElement);
+        }
+    }
+
+    createPartFromXML(partElement) {
+        // Get basic properties
+        const name = partElement.getAttribute('Name') || 'Part';
+        const className = partElement.getAttribute('ClassName') || 'Part';
+        
+        // Get position
+        const position = partElement.getElementsByTagName('Position')[0];
+        const x = position ? parseFloat(position.getAttribute('X')) : 0;
+        const y = position ? parseFloat(position.getAttribute('Y')) : 0;
+        const z = position ? parseFloat(position.getAttribute('Z')) : 0;
+
+        // Get size
+        const size = partElement.getElementsByTagName('Size')[0];
+        const width = size ? parseFloat(size.getAttribute('X')) : 1;
+        const height = size ? parseFloat(size.getAttribute('Y')) : 1;
+        const depth = size ? parseFloat(size.getAttribute('Z')) : 1;
+
+        // Get color
+        const color = partElement.getElementsByTagName('Color3')[0];
+        const r = color ? parseFloat(color.getAttribute('R')) * 255 : 128;
+        const g = color ? parseFloat(color.getAttribute('G')) * 255 : 128;
+        const b = color ? parseFloat(color.getAttribute('B')) * 255 : 128;
+
+        // Get shape
+        const shape = partElement.getElementsByTagName('Shape')[0];
+        let partType = 'box';
+        if (shape) {
+            const shapeValue = shape.getAttribute('Value');
+            switch (shapeValue) {
+                case 'Ball':
+                    partType = 'sphere';
+                    break;
+                case 'Cylinder':
+                    partType = 'cylinder';
+                    break;
+                case 'Cone':
+                    partType = 'cone';
+                    break;
+                // Add more shape conversions as needed
+            }
+        }
+
+        // Create the part
+        const part = new Part(partType, {
+            width: width,
+            height: height,
+            depth: depth,
+            color: this.rgb(r, g, b),
+            canCollide: true
+        });
+
+        // Set position
+        this.setPartPosition(part, x, y, z);
+
+        // Add to scene
+        this.addPart(part);
+
+        return part;
+    }
+
+    processModelElement(modelElement) {
+        const name = modelElement.getAttribute('Name') || 'Model';
+        const group = this.createGroup(name);
+
+        // Process all parts in the model
+        const parts = modelElement.getElementsByTagName('Part');
+        for (const partElement of parts) {
+            const part = this.createPartFromXML(partElement);
+            if (part) {
+                group.add(part);
+            }
+        }
+
+        // Process nested models recursively
+        const nestedModels = modelElement.getElementsByTagName('Model');
+        for (const nestedModel of nestedModels) {
+            this.processModelElement(nestedModel);
+        }
+
+        return group;
+    }
 } 
