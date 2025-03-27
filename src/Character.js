@@ -144,8 +144,10 @@ export class Character {
             this.properties.isJumping = true;
         }
 
-        // Apply gravity
-        this.properties.velocity.y -= this.properties.gravity;
+        // Only apply gravity when jumping/falling
+        if (this.properties.isJumping) {
+            this.properties.velocity.y -= this.properties.gravity;
+        }
 
         // Apply air resistance and ground friction
         if (this.properties.isJumping) {

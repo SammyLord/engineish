@@ -230,7 +230,7 @@ export class Engine {
         if (isOnTop) {
             // When on top, push up just enough to rest on the surface
             const surfaceY = partBox.max.y;
-            const pushUpAmount = surfaceY - playerBox.min.y;
+            const pushUpAmount = surfaceY - playerBox.min.y + 0.001; // Add tiny buffer to prevent floating point issues
             
             resolutionAxes.push({
                 axis: 'y',
@@ -313,12 +313,16 @@ export class Engine {
             
             if (positionChange <= maxPositionChange) {
                 player.group.position.copy(newPos);
+                // Update bounding box after position change
+                player.boundingBox.setFromObject(player.group);
                 return; // Exit after applying the first valid resolution
             }
         }
 
         // If no valid resolution found, revert to original position
         player.group.position.copy(originalPos);
+        // Update bounding box after position revert
+        player.boundingBox.setFromObject(player.group);
     }
 
     // Add a part to the collision system
