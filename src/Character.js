@@ -123,13 +123,10 @@ export class Character {
     }
 
     update() {
-        // Store previous position for collision resolution
-        const previousPosition = this.group.position.clone();
-
-        // Calculate movement vector based on input
-        const moveVector = new THREE.Vector3();
         const moveSpeed = this.properties.moveSpeed;
-        
+        const moveVector = new THREE.Vector3();
+
+        // Apply movement based on input
         if (this.keys.w) moveVector.z -= moveSpeed;
         if (this.keys.s) moveVector.z += moveSpeed;
         if (this.keys.a) moveVector.x -= moveSpeed;
@@ -149,13 +146,17 @@ export class Character {
 
         // Apply gravity
         this.properties.velocity.y -= this.properties.gravity;
-        
-        // Apply vertical movement
-        this.group.position.y += this.properties.velocity.y;
-        
-        // Apply friction to horizontal velocity
-        this.properties.velocity.x *= 0.9;
-        this.properties.velocity.z *= 0.9;
+
+        // Apply air resistance and ground friction
+        if (this.properties.isJumping) {
+            // Air resistance (stronger horizontal damping in air)
+            this.properties.velocity.x *= 0.95;
+            this.properties.velocity.z *= 0.95;
+        } else {
+            // Ground friction (smoother horizontal damping on ground)
+            this.properties.velocity.x *= 0.85;
+            this.properties.velocity.z *= 0.85;
+        }
 
         // Ensure character doesn't fall below ground
         if (this.group.position.y < 0) {

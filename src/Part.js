@@ -23,6 +23,62 @@ export class Part {
         
         // Create a raycaster for collision detection
         this.raycaster = new THREE.Raycaster();
+
+        // Update the bounding box based on the mesh's geometry
+        this.updateBoundingBox();
+    }
+
+    updateBoundingBox() {
+        if (this.mesh && this.mesh.geometry) {
+            // Update the mesh's world matrix to ensure transformations are applied
+            this.mesh.updateMatrixWorld(true);
+            
+            // Set the bounding box from the mesh's geometry
+            this.boundingBox.setFromObject(this.mesh);
+            
+            // Adjust the bounding box based on the part type and dimensions
+            const halfWidth = this.properties.width ? this.properties.width / 2 : 0.5;
+            const halfHeight = this.properties.height ? this.properties.height / 2 : 0.5;
+            const halfDepth = this.properties.depth ? this.properties.depth / 2 : 0.5;
+            const radius = this.properties.radius || 0.5;
+
+            switch (this.type.toLowerCase()) {
+                case 'box':
+                    // Box bounding box is already correct from setFromObject
+                    break;
+                case 'sphere':
+                    // For spheres, we need to ensure the bounding box is cubic
+                    const center = new THREE.Vector3();
+                    this.boundingBox.getCenter(center);
+                    this.boundingBox.min.set(
+                        center.x - radius,
+                        center.y - radius,
+                        center.z - radius
+                    );
+                    this.boundingBox.max.set(
+                        center.x + radius,
+                        center.y + radius,
+                        center.z + radius
+                    );
+                    break;
+                case 'cylinder':
+                    // For cylinders, we need to ensure the bounding box matches the radius and height
+                    const cylCenter = new THREE.Vector3();
+                    this.boundingBox.getCenter(cylCenter);
+                    const cylHeight = this.properties.height || 1;
+                    this.boundingBox.min.set(
+                        cylCenter.x - radius,
+                        cylCenter.y - cylHeight / 2,
+                        cylCenter.z - radius
+                    );
+                    this.boundingBox.max.set(
+                        cylCenter.x + radius,
+                        cylCenter.y + cylHeight / 2,
+                        cylCenter.z + radius
+                    );
+                    break;
+            }
+        }
     }
 
     createMesh() {
@@ -131,21 +187,18 @@ export class Part {
 
     // Property setters
     setPosition(x, y, z) {
-        this.properties.position = { x, y, z };
         this.mesh.position.set(x, y, z);
-        this.boundingBox.setFromObject(this.mesh);
+        this.updateBoundingBox();
     }
 
     setRotation(x, y, z) {
-        this.properties.rotation = { x, y, z };
         this.mesh.rotation.set(x, y, z);
-        this.boundingBox.setFromObject(this.mesh);
+        this.updateBoundingBox();
     }
 
     setScale(x, y, z) {
-        this.properties.scale = { x, y, z };
         this.mesh.scale.set(x, y, z);
-        this.boundingBox.setFromObject(this.mesh);
+        this.updateBoundingBox();
     }
 
     setColor(color) {

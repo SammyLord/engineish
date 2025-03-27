@@ -217,69 +217,109 @@ export class Engine {
             partBox.max.z - playerBox.min.z
         );
 
-        // Find the smallest overlap to determine which axis to resolve
-        const minOverlap = Math.min(overlapX, overlapY, overlapZ);
-        
         // Calculate direction from part to player
         const direction = new THREE.Vector3().subVectors(playerCenter, partCenter).normalize();
         
         // Calculate the slope angle for Y-axis collisions
         const slopeAngle = Math.abs(Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z)));
         const maxSlopeAngle = Math.PI / 4; // 45 degrees
+
+        // Store the original position for comparison
+        const originalPos = player.group.position.clone();
         
-        // Determine primary collision axis based on direction and overlap
-        let collisionAxis = '';
-        let collisionAmount = 0;
+        // Calculate all possible resolution axes
+        const resolutionAxes = [];
         
-        if (minOverlap === overlapY && Math.abs(direction.y) > 0.1) {
-            collisionAxis = 'y';
-            collisionAmount = direction.y > 0 ? overlapY : -overlapY;
-            
-            // Handle landing on top of objects
-            if (direction.y > 0) {
-                player.properties.isJumping = false;
-                player.properties.velocity.y = 0;
-                
-                // If on a slope, slide down if too steep
-                if (slopeAngle > maxSlopeAngle) {
-                    // Calculate slide direction
-                    const slideDir = new THREE.Vector3(direction.x, 0, direction.z).normalize();
-                    player.properties.velocity.x = -slideDir.x * 0.1;
-                    player.properties.velocity.z = -slideDir.z * 0.1;
-                } else {
-                    // On a walkable slope or flat surface
-                    player.properties.velocity.x = 0;
-                    player.properties.velocity.z = 0;
-                }
+        // Add Y-axis resolution first if we're on top of something
+        const isOnTop = direction.y > 0 && Math.abs(direction.y) > 0.7;
+        if (isOnTop) {
+            resolutionAxes.push({
+                axis: 'y',
+                overlap: overlapY,
+                priority: 1,
+                amount: overlapY
+            });
+        }
+        // Otherwise, add all valid axes
+        else {
+            // Check each axis and add valid resolutions
+            if (Math.abs(direction.y) > 0.1) {
+                resolutionAxes.push({
+                    axis: 'y',
+                    overlap: overlapY,
+                    priority: direction.y > 0 ? 1 : 2,
+                    amount: direction.y > 0 ? overlapY : -overlapY
+                });
             }
-        } else if (minOverlap === overlapX && Math.abs(direction.x) > 0.5) {
-            collisionAxis = 'x';
-            collisionAmount = direction.x > 0 ? overlapX : -overlapX;
-            player.properties.velocity.x = 0;
-        } else if (minOverlap === overlapZ && Math.abs(direction.z) > 0.5) {
-            collisionAxis = 'z';
-            collisionAmount = direction.z > 0 ? overlapZ : -overlapZ;
-            player.properties.velocity.z = 0;
+            
+            if (Math.abs(direction.x) > 0.1) {
+                resolutionAxes.push({
+                    axis: 'x',
+                    overlap: overlapX,
+                    priority: 3,
+                    amount: direction.x > 0 ? overlapX : -overlapX
+                });
+            }
+            
+            if (Math.abs(direction.z) > 0.1) {
+                resolutionAxes.push({
+                    axis: 'z',
+                    overlap: overlapZ,
+                    priority: 3,
+                    amount: direction.z > 0 ? overlapZ : -overlapZ
+                });
+            }
         }
 
-        // Apply collision response if we found a valid axis
-        if (collisionAxis) {
+        // Sort resolutions by priority and overlap (smaller overlap first)
+        resolutionAxes.sort((a, b) => {
+            if (a.priority !== b.priority) return a.priority - b.priority;
+            return a.overlap - b.overlap;
+        });
+
+        // Try each resolution axis until we find one that works
+        for (const resolution of resolutionAxes) {
             const newPos = player.group.position.clone();
+            newPos[resolution.axis] += resolution.amount;
+
+            // Apply special handling for Y-axis
+            if (resolution.axis === 'y') {
+                // Only reset jumping and velocity if we're actually landing (not just brushing the side)
+                if (isOnTop) {
+                    player.properties.isJumping = false;
+                    player.properties.velocity.y = 0;
+
+                    if (slopeAngle > maxSlopeAngle) {
+                        // Smoother sliding behavior
+                        const slideDir = new THREE.Vector3(direction.x, 0, direction.z).normalize();
+                        const slideSpeed = 0.05; // Reduced from 0.1 for smoother movement
+                        
+                        // Apply sliding with reduced speed
+                        player.properties.velocity.x = -slideDir.x * slideSpeed;
+                        player.properties.velocity.z = -slideDir.z * slideSpeed;
+                    } else {
+                        // When standing on something, gradually stop horizontal movement
+                        player.properties.velocity.x *= 0.8;
+                        player.properties.velocity.z *= 0.8;
+                    }
+                } else if (direction.y < 0) {
+                    // If we're hitting something from below, stop upward velocity
+                    player.properties.velocity.y = Math.min(0, player.properties.velocity.y);
+                }
+            }
+
+            // Apply the position change if it's reasonable
+            const maxPositionChange = isOnTop ? 0.5 : 2; // Smaller threshold when on top
+            const positionChange = newPos.distanceTo(originalPos);
             
-            // Apply the collision response
-            newPos[collisionAxis] += collisionAmount;
-            
-            // Check if the position change is reasonable
-            const maxPositionChange = 2;
-            if (newPos.distanceTo(player.group.position) < maxPositionChange) {
-                player.setPosition(newPos.x, newPos.y, newPos.z);
-            } else {
-                // If change is too extreme, try to find a safe position
-                const safePos = player.group.position.clone();
-                safePos.y = Math.max(safePos.y, 0); // Keep above ground
-                player.setPosition(safePos.x, safePos.y, safePos.z);
+            if (positionChange <= maxPositionChange) {
+                player.group.position.copy(newPos);
+                return; // Exit after applying the first valid resolution
             }
         }
+
+        // If no valid resolution found, revert to original position
+        player.group.position.copy(originalPos);
     }
 
     // Add a part to the collision system
