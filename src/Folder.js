@@ -1,7 +1,14 @@
 export class Folder {
     constructor(name) {
         this.name = name;
+        this.parts = [];
+        this.folders = [];
+        this.engine = null; // Will be set when added to engine
         this.children = new Map();
+    }
+
+    setEngine(engine) {
+        this.engine = engine;
     }
 
     add(child) {

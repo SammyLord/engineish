@@ -33,50 +33,80 @@ export class Part {
             // Update the mesh's world matrix to ensure transformations are applied
             this.mesh.updateMatrixWorld(true);
             
-            // Set the bounding box from the mesh's geometry
-            this.boundingBox.setFromObject(this.mesh);
+            // Get the world position of the mesh
+            const worldPosition = new THREE.Vector3();
+            this.mesh.getWorldPosition(worldPosition);
             
-            // Adjust the bounding box based on the part type and dimensions
-            const halfWidth = this.properties.width ? this.properties.width / 2 : 0.5;
-            const halfHeight = this.properties.height ? this.properties.height / 2 : 0.5;
-            const halfDepth = this.properties.depth ? this.properties.depth / 2 : 0.5;
-            const radius = this.properties.radius || 0.5;
+            // Get the world scale
+            const worldScale = new THREE.Vector3();
+            this.mesh.getWorldScale(worldScale);
+            
+            // Get the world rotation
+            const worldQuaternion = new THREE.Quaternion();
+            this.mesh.getWorldQuaternion(worldQuaternion);
 
             switch (this.type.toLowerCase()) {
                 case 'box':
-                    // Box bounding box is already correct from setFromObject
+                    // For boxes, explicitly set the bounds based on dimensions
+                    const halfWidth = (this.properties.width || 1) * worldScale.x / 2;
+                    const halfHeight = (this.properties.height || 1) * worldScale.y / 2;
+                    const halfDepth = (this.properties.depth || 1) * worldScale.z / 2;
+
+                    // Create a box3 helper to handle rotation
+                    const min = new THREE.Vector3(-halfWidth, -halfHeight, -halfDepth);
+                    const max = new THREE.Vector3(halfWidth, halfHeight, halfDepth);
+
+                    // Apply rotation
+                    min.applyQuaternion(worldQuaternion);
+                    max.applyQuaternion(worldQuaternion);
+
+                    // Set the final bounds with world position offset
+                    this.boundingBox.min.set(
+                        worldPosition.x + Math.min(min.x, max.x),
+                        worldPosition.y + Math.min(min.y, max.y),
+                        worldPosition.z + Math.min(min.z, max.z)
+                    );
+                    this.boundingBox.max.set(
+                        worldPosition.x + Math.max(min.x, max.x),
+                        worldPosition.y + Math.max(min.y, max.y),
+                        worldPosition.z + Math.max(min.z, max.z)
+                    );
                     break;
+                    
                 case 'sphere':
-                    // For spheres, we need to ensure the bounding box is cubic
-                    const center = new THREE.Vector3();
-                    this.boundingBox.getCenter(center);
+                    // For spheres, ensure the bounding box is cubic
+                    const radius = (this.properties.radius || 0.5) * Math.max(worldScale.x, worldScale.y, worldScale.z);
                     this.boundingBox.min.set(
-                        center.x - radius,
-                        center.y - radius,
-                        center.z - radius
+                        worldPosition.x - radius,
+                        worldPosition.y - radius,
+                        worldPosition.z - radius
                     );
                     this.boundingBox.max.set(
-                        center.x + radius,
-                        center.y + radius,
-                        center.z + radius
+                        worldPosition.x + radius,
+                        worldPosition.y + radius,
+                        worldPosition.z + radius
                     );
                     break;
+                    
                 case 'cylinder':
-                    // For cylinders, we need to ensure the bounding box matches the radius and height
-                    const cylCenter = new THREE.Vector3();
-                    this.boundingBox.getCenter(cylCenter);
-                    const cylHeight = this.properties.height || 1;
+                    // For cylinders, ensure the bounding box matches the radius and height
+                    const cylRadius = (this.properties.radius || 0.5) * Math.max(worldScale.x, worldScale.z);
+                    const cylHeight = (this.properties.height || 1) * worldScale.y;
                     this.boundingBox.min.set(
-                        cylCenter.x - radius,
-                        cylCenter.y - cylHeight / 2,
-                        cylCenter.z - radius
+                        worldPosition.x - cylRadius,
+                        worldPosition.y - cylHeight / 2,
+                        worldPosition.z - cylRadius
                     );
                     this.boundingBox.max.set(
-                        cylCenter.x + radius,
-                        cylCenter.y + cylHeight / 2,
-                        cylCenter.z + radius
+                        worldPosition.x + cylRadius,
+                        worldPosition.y + cylHeight / 2,
+                        worldPosition.z + cylRadius
                     );
                     break;
+                    
+                default:
+                    // For other shapes, use the default setFromObject
+                    this.boundingBox.setFromObject(this.mesh);
             }
         }
     }

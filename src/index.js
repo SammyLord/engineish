@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function createExampleScene() {
         // Create a folder for organization
         const myFolder = engine.createFolder('MyFolder');
+        engine.spawnBaseplate();
 
         // Create a group for a house
         const house = engine.createGroup('House');

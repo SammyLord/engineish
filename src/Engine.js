@@ -27,6 +27,7 @@ export class Engine {
 
         // Initialize core objects
         this.workspace = new Folder('Workspace');
+        this.workspace.setEngine(this);
         this.starterCharacter = new Character();
         this.localPlayer = null;
         
@@ -44,9 +45,6 @@ export class Engine {
         // Initialize collision system
         this.collidableParts = new Set();
         this.groups = new Set(); // Initialize groups Set
-
-        // Add baseplate by default with gray color
-        this.baseplate = this.addBaseplate(0x808080);
 
         // Start animation loop
         this.animate();
@@ -124,23 +122,16 @@ export class Engine {
         return this.localPlayer;
     }
 
-    addBaseplate(color = 0x808080) {
+    spawnBaseplate(color = 0x00ff00, yPos = -0.5, xSize = 100, zSize = 100) {
         const baseplate = new Part('box', { 
-            width: 100, 
+            width: xSize, 
             height: 1, 
-            depth: 100,
+            depth: zSize,
             color: color,
             canCollide: true
         });
-        baseplate.mesh.position.y = -0.5; // Position slightly below 0 so player stands on top
-        this.scene.add(baseplate.mesh);
-        
-        // Make sure the baseplate is collidable
-        baseplate.setupCollision();
-        baseplate.boundingBox.setFromObject(baseplate.mesh);
-        this.collidableParts.add(baseplate);
-        
-        return baseplate;
+        baseplate.mesh.position.y = yPos; // Position slightly below 0 so player stands on top
+        return this.addPart(baseplate);
     }
 
     createFolder(name) {
