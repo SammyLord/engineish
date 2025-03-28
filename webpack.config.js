@@ -24,7 +24,5 @@ module.exports = {
         },
       },
     ],
-  },
-  // SPL-R5 License
-  license: 'SPL-R5',
+  }
 }; 

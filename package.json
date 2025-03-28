@@ -4,7 +4,7 @@
   "description": "A THREE.js middleware providing ROBLOX-like scripting capabilities",
   "main": "src/place.js",
   "author": "Sneed Group",
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "SPL-R5",
   "scripts": {
     "start": "webpack serve --mode development",
     "build": "webpack --mode production",
