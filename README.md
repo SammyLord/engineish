@@ -8,7 +8,7 @@ A THREE.js middleware that provides ROBLOX-like scripting capabilities for creat
 - Create and manipulate basic geometric shapes (boxes, spheres, cylinders, cones, trusses)
 - Organize objects using folders and groups
 - Set properties like position, rotation, scale, and color
-- Optional multiplayer support
+- Built-in optional multiplayer support with Socket.IO
 - Scriptable and extensible architecture
 
 ## Installation
@@ -21,15 +21,25 @@ npm install
 
 ## Development
 
-To start the development server:
-```bash
-npm start
-```
+The project uses Webpack for bundling and Babel for transpilation. Available scripts:
 
-To build for production:
-```bash
-npm run build
-```
+- `npm start`: Start the development server with hot reloading
+- `npm run build`: Build for production
+- `npm run server`: Start the multiplayer server
+- `npm run dev`: Start both development server and multiplayer server concurrently
+
+## Dependencies
+
+### Core Dependencies
+- three.js (^0.162.0): 3D graphics library
+- socket.io-client (^4.7.4): Client-side multiplayer support
+- express (^4.18.2): Server framework
+- socket.io (^4.7.4): Server-side multiplayer support
+
+### Development Dependencies
+- webpack (^5.90.3): Module bundler
+- babel (^7.24.0): JavaScript transpiler
+- concurrently (^8.2.2): Run multiple commands concurrently
 
 ## Usage
 
@@ -112,6 +122,26 @@ const found = myFolder.find('House');
 ```javascript
 // Add a baseplate with custom color
 engine.addBaseplate(0x808080);
+```
+
+### Multiplayer Support
+
+```javascript
+// Connect to the multiplayer server
+engine.connect('http://localhost:3000');
+
+// Spawn a networked character
+const player = engine.spawn({
+    networked: true,
+    position: { x: 0, y: 5, z: 0 }
+});
+
+// Sync object properties across network
+player.sync({
+    position: true,
+    rotation: true,
+    scale: true
+});
 ```
 
 ## Available Part Types
