@@ -23,7 +23,12 @@ export class Character {
             bounceFactor: 0.5,
             airResistance: 0.95,
             groundFriction: 0.85,
-            maxVelocity: 0.5
+            maxVelocity: 0.5,
+            health: 100,
+            maxHealth: 100,
+            isInvulnerable: false,
+            invulnerabilityDuration: 1000, // milliseconds
+            lastDamageTime: 0
         };
         // Add position history array to store last 3 positions
         this.positionHistory = [];
@@ -209,6 +214,14 @@ export class Character {
     spawn(scene, engine) {
         this.engine = engine; // Store engine reference
         scene.add(this.group);
+        
+        // Initialize health if enabled
+        if (engine.options.enableHealth) {
+            this.properties.health = engine.options.maxHealth;
+            this.properties.maxHealth = engine.options.maxHealth;
+            engine.createHealthUI();
+        }
+        
         return this;
     }
 
@@ -261,5 +274,65 @@ export class Character {
     restorePreviousPosition(previousPos) {
         this.group.position.copy(previousPos);
         this.boundingBox.setFromObject(this.group);
+    }
+
+    // Health-related methods
+    getHealth() {
+        return this.properties.health;
+    }
+
+    getMaxHealth() {
+        return this.properties.maxHealth;
+    }
+
+    setHealth(health) {
+        this.properties.health = Math.max(0, Math.min(health, this.properties.maxHealth));
+    }
+
+    takeDamage(amount) {
+        if (this.properties.isInvulnerable) return false;
+
+        const currentTime = Date.now();
+        if (currentTime - this.properties.lastDamageTime < this.properties.invulnerabilityDuration) {
+            return false;
+        }
+
+        this.properties.health = Math.max(0, this.properties.health - amount);
+        this.properties.lastDamageTime = currentTime;
+
+        // Flash red when taking damage
+        this.flashRed();
+
+        return true;
+    }
+
+    heal(amount) {
+        this.properties.health = Math.min(this.properties.maxHealth, this.properties.health + amount);
+    }
+
+    setInvulnerable(duration = 1000) {
+        this.properties.isInvulnerable = true;
+        this.properties.invulnerabilityDuration = duration;
+        setTimeout(() => {
+            this.properties.isInvulnerable = false;
+        }, duration);
+    }
+
+    flashRed() {
+        const originalColors = {};
+        Object.values(this.parts).forEach(part => {
+            originalColors[part] = part.mesh.material.color.getHex();
+            part.mesh.material.color.setHex(0xff0000);
+        });
+
+        setTimeout(() => {
+            Object.entries(originalColors).forEach(([part, color]) => {
+                this.parts[part].mesh.material.color.setHex(color);
+            });
+        }, 100);
+    }
+
+    isDead() {
+        return this.properties.health <= 0;
     }
 } 

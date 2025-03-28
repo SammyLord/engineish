@@ -12,6 +12,8 @@ export class Engine {
         this.options = {
             enableMultiplayer: false,
             websocketUrl: 'http://localhost:3000',
+            enableHealth: false,
+            maxHealth: 100,
             ...options
         };
         
@@ -327,6 +329,11 @@ export class Engine {
             this.checkCollisions();
             // Finally update camera
             this.updateCamera();
+
+            // Update health UI if enabled
+            if (this.options.enableHealth) {
+                this.updateHealthUI();
+            }
 
             // If multiplayer is enabled, send position update
             if (this.options.enableMultiplayer && this.socket) {
@@ -874,5 +881,69 @@ export class Engine {
         }
 
         return group;
+    }
+
+    createHealthUI() {
+        if (!this.options.enableHealth) return;
+
+        const healthContainer = document.createElement('div');
+        healthContainer.style.position = 'absolute';
+        healthContainer.style.top = '20px';
+        healthContainer.style.left = '20px';
+        healthContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+        healthContainer.style.padding = '10px';
+        healthContainer.style.borderRadius = '5px';
+        healthContainer.style.color = 'white';
+        healthContainer.style.fontFamily = 'Arial, sans-serif';
+        healthContainer.style.zIndex = '1000';
+
+        const healthBar = document.createElement('div');
+        healthBar.style.width = '200px';
+        healthBar.style.height = '20px';
+        healthBar.style.backgroundColor = '#333';
+        healthBar.style.borderRadius = '10px';
+        healthBar.style.overflow = 'hidden';
+
+        const healthFill = document.createElement('div');
+        healthFill.style.width = '100%';
+        healthFill.style.height = '100%';
+        healthFill.style.backgroundColor = '#00ff00';
+        healthFill.style.transition = 'width 0.3s ease-in-out';
+
+        const healthText = document.createElement('div');
+        healthText.style.textAlign = 'center';
+        healthText.style.marginTop = '5px';
+        healthText.style.fontSize = '14px';
+
+        healthBar.appendChild(healthFill);
+        healthContainer.appendChild(healthBar);
+        healthContainer.appendChild(healthText);
+        this.container.appendChild(healthContainer);
+
+        this.healthUI = {
+            container: healthContainer,
+            bar: healthFill,
+            text: healthText
+        };
+    }
+
+    updateHealthUI() {
+        if (!this.options.enableHealth || !this.healthUI || !this.localPlayer) return;
+
+        const health = this.localPlayer.getHealth();
+        const maxHealth = this.localPlayer.getMaxHealth();
+        const percentage = (health / maxHealth) * 100;
+
+        this.healthUI.bar.style.width = `${percentage}%`;
+        this.healthUI.text.textContent = `Health: ${Math.round(health)}/${maxHealth}`;
+
+        // Update health bar color based on health percentage
+        if (percentage > 60) {
+            this.healthUI.bar.style.backgroundColor = '#00ff00';
+        } else if (percentage > 30) {
+            this.healthUI.bar.style.backgroundColor = '#ffff00';
+        } else {
+            this.healthUI.bar.style.backgroundColor = '#ff0000';
+        }
     }
 } 
