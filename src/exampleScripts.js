@@ -1,6 +1,8 @@
-/**
- * Example scripts for the engine's scripting system
- */
+
+// Example scripts for the engine's scripting system
+// It is used to test the engine's scripting system.
+// It is also licensed under the CC0 license.
+// https://creativecommons.org/publicdomain/zero/1.0/
 
 /**
  * Color change tool script
