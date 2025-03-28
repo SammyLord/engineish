@@ -52,7 +52,7 @@ The project uses Webpack for bundling and Babel for transpilation. Available scr
   <title>Engineish</title>
 </head>
 <body>
-<div id="engineish-container"></div>
+<div id="engineish-container" width="80%" height="84%"></div>
 <script src="bundle.js"></script>
 <script>
     // Initialize the engine
