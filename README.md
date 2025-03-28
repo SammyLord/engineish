@@ -41,17 +41,25 @@ The project uses Webpack for bundling and Babel for transpilation. Available scr
 - babel (^7.24.0): JavaScript transpiler
 - concurrently (^8.2.2): Run multiple commands concurrently
 
-## Usage
+## Usage (The code in this section is under the CC0)
 
 ### Basic Setup
 
 ```html
-<div id="game-container"></div>
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Engineish</title>
+</head>
+<body>
+<div id="engineish-container"></div>
 <script src="bundle.js"></script>
 <script>
     // Initialize the engine
     const engine = new Engine(document.getElementById('game-container'));
 </script>
+</body>
+</html>
 ```
 
 ### Creating Parts
