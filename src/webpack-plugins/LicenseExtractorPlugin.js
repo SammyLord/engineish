@@ -13,7 +13,7 @@ class LicenseExtractorPlugin {
           compilation.emitAsset(
             'bundle.js.LICENSE.threejs.txt',
             new compiler.webpack.sources.RawSource(
-              '/*! three.js - MIT License\n * Copyright © three.js authors\n */'
+              '/*! Three.js - MIT License\n * Copyright © Three.js authors\n */'
             )
           );
 
