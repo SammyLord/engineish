@@ -15,7 +15,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize the engine
     const engine = new Engine(container, {
         enableMultiplayer: false, // Disable multiplayer for now, it's a work in progress.
-        websocketUrl: "ws://localhost:3000"
+        websocketUrl: "ws://localhost:3000",
+        enableHealth: true, // Enable health system
+        maxHealth: 100
     });
 
     engine.setPlaceTitle("Engineish Sample Scene");
@@ -26,6 +28,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // Create a folder for organization
         const myFolder = engine.createFolder('MyFolder');
         engine.spawnBaseplate();
+
+        // Create spawn points
+        engine.createSpawnPoint(0, 0, 0); // Center spawn
+        engine.createSpawnPoint(-10, 0, -10); // Corner spawn
+        engine.createSpawnPoint(10, 0, 10); // Opposite corner spawn
+        engine.createSpawnPoint(0, 0, -15); // Back spawn
 
         // Create a group for a house
         const house = engine.createGroup('House');

@@ -4,6 +4,7 @@ import { Character } from './Character';
 import { Part } from './Part';
 import { Folder } from './Folder';
 import { Group } from './Group';
+import { SpawnPoint } from './SpawnPoint';
 import { io } from 'socket.io-client';
 
 export class Engine {
@@ -77,6 +78,9 @@ export class Engine {
         // Initialize collision system
         this.collidableParts = new Set();
         this.groups = new Set(); // Initialize groups Set
+
+        // Initialize spawn points array
+        this.spawnPoints = [];
 
         // Initialize multiplayer if enabled
         if (this.options.enableMultiplayer) {
@@ -335,6 +339,11 @@ export class Engine {
                 this.updateHealthUI();
             }
 
+            // Check if player is dead and respawn if needed
+            if (this.options.enableHealth && this.localPlayer.isDead()) {
+                this.respawnPlayer();
+            }
+
             // If multiplayer is enabled, send position update
             if (this.options.enableMultiplayer && this.socket) {
                 this.socket.emit('playerUpdate', {
@@ -358,6 +367,9 @@ export class Engine {
 
         // Update OrbitControls
         this.controls.update();
+
+        // Update spawn points in animation loop
+        this.updateSpawnPoints();
 
         this.renderer.render(this.scene, this.camera);
     }
@@ -945,5 +957,40 @@ export class Engine {
         } else {
             this.healthUI.bar.style.backgroundColor = '#ff0000';
         }
+    }
+
+    // Spawn point methods
+    createSpawnPoint(x, y, z) {
+        const spawnPoint = new SpawnPoint();
+        spawnPoint.setPosition(x, y, z);
+        this.scene.add(spawnPoint.mesh);
+        this.spawnPoints.push(spawnPoint);
+        return spawnPoint;
+    }
+
+    respawnPlayer() {
+        if (!this.localPlayer || this.spawnPoints.length === 0) return;
+
+        // Select a random spawn point
+        const randomIndex = Math.floor(Math.random() * this.spawnPoints.length);
+        const spawnPoint = this.spawnPoints[randomIndex];
+        const spawnPos = spawnPoint.getSpawnPosition();
+
+        // Reset player position and health
+        this.localPlayer.setPosition(spawnPos.x, spawnPos.y, spawnPos.z);
+        this.localPlayer.setHealth(this.localPlayer.getMaxHealth());
+        
+        // Give brief invulnerability after respawning
+        this.localPlayer.setInvulnerable(2000); // 2 seconds of invulnerability
+
+        // Update camera to look at new position
+        this.camera.position.set(spawnPos.x, spawnPos.y + 5, spawnPos.z + 10);
+        this.camera.lookAt(spawnPos.x, spawnPos.y, spawnPos.z);
+        this.controls.target.set(spawnPos.x, spawnPos.y, spawnPos.z);
+    }
+
+    // Update spawn points in animation loop
+    updateSpawnPoints() {
+        this.spawnPoints.forEach(spawnPoint => spawnPoint.update());
     }
 } 
