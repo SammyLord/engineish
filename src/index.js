@@ -14,8 +14,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize the engine
     const engine = new Engine(container, {
-        enableMultiplayer: false
+        enableMultiplayer: false, // Disable multiplayer for now, it's a work in progress.
+        websocketUrl: "ws://localhost:3000"
     });
+
+    engine.setPlaceTitle("Engineish Sample Scene");
 
     // Example usage
     function createExampleScene() {

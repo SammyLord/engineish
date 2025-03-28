@@ -4,14 +4,27 @@ import { Character } from './Character';
 import { Part } from './Part';
 import { Folder } from './Folder';
 import { Group } from './Group';
+import { io } from 'socket.io-client';
 
 export class Engine {
     constructor(container, options = {}) {
         this.container = container;
         this.options = {
             enableMultiplayer: false,
+            websocketUrl: 'http://localhost:3000',
             ...options
         };
+        
+        // Initialize multiplayer state
+        this.remotePlayers = new Map();
+        this.socket = null;
+        this.playerId = null;
+        this.playerNickname = null;
+        
+        // Create nickname input UI if multiplayer is enabled
+        if (this.options.enableMultiplayer) {
+            this.createNicknameUI();
+        }
         
         // Initialize THREE.js scene
         this.scene = new THREE.Scene();
@@ -63,11 +76,172 @@ export class Engine {
         this.collidableParts = new Set();
         this.groups = new Set(); // Initialize groups Set
 
+        // Initialize multiplayer if enabled
+        if (this.options.enableMultiplayer) {
+            this.initializeMultiplayer();
+        }
+
         // Start animation loop
         this.animate();
 
         // Handle window resize
         window.addEventListener('resize', () => this.onWindowResize(), false);
+    }
+
+    createNicknameUI() {
+        // Create container for nickname input
+        const nicknameContainer = document.createElement('div');
+        nicknameContainer.style.position = 'fixed';
+        nicknameContainer.style.top = '20px';
+        nicknameContainer.style.left = '20px';
+        nicknameContainer.style.zIndex = '1000';
+        nicknameContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        nicknameContainer.style.padding = '10px';
+        nicknameContainer.style.borderRadius = '5px';
+        nicknameContainer.style.color = 'white';
+        nicknameContainer.style.fontFamily = 'Arial, sans-serif';
+
+        // Create input field
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = 'Enter your nickname';
+        input.style.padding = '5px';
+        input.style.marginRight = '5px';
+        input.style.borderRadius = '3px';
+        input.style.border = 'none';
+
+        // Create submit button
+        const button = document.createElement('button');
+        button.textContent = 'Join Game';
+        button.style.padding = '5px 10px';
+        button.style.borderRadius = '3px';
+        button.style.border = 'none';
+        button.style.backgroundColor = '#4CAF50';
+        button.style.color = 'white';
+        button.style.cursor = 'pointer';
+
+        // Add elements to container
+        nicknameContainer.appendChild(input);
+        nicknameContainer.appendChild(button);
+
+        // Add container to document
+        document.body.appendChild(nicknameContainer);
+
+        // Handle nickname submission
+        const handleSubmit = () => {
+            const nickname = input.value.trim();
+            if (nickname) {
+                this.playerNickname = nickname;
+                nicknameContainer.style.display = 'none';
+                this.initializeMultiplayer();
+            }
+        };
+
+        // Add event listeners
+        button.addEventListener('click', handleSubmit);
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleSubmit();
+            }
+        });
+    }
+
+    initializeMultiplayer() {
+        // Connect to WebSocket server
+        this.socket = io(this.options.websocketUrl);
+
+        // Handle connection events
+        this.socket.on('connect', () => {
+            console.log('Connected to multiplayer server');
+            this.playerId = this.socket.id;
+        });
+
+        this.socket.on('disconnect', () => {
+            console.log('Disconnected from multiplayer server');
+            this.playerId = null;
+        });
+
+        // Handle player events
+        this.socket.on('playerJoined', (data) => {
+            if (data.id !== this.playerId) {
+                this.createRemotePlayer(data.id, data.position, data.nickname);
+            }
+        });
+
+        this.socket.on('playerLeft', (data) => {
+            this.removeRemotePlayer(data.id);
+        });
+
+        this.socket.on('playerUpdate', (data) => {
+            if (data.id !== this.playerId) {
+                this.updateRemotePlayer(data.id, data.position, data.rotation);
+            }
+        });
+
+        this.socket.on('currentPlayers', (players) => {
+            players.forEach(player => {
+                if (player.id !== this.playerId) {
+                    this.createRemotePlayer(player.id, player.position, player.nickname);
+                }
+            });
+        });
+    }
+
+    createRemotePlayer(id, position, nickname) {
+        const character = new Character();
+        character.spawn(this.scene, this);
+        character.setPosition(position.x, position.y, position.z);
+        
+        // Create nickname label
+        const label = this.createNicknameLabel(nickname);
+        character.group.add(label);
+        
+        this.remotePlayers.set(id, character);
+    }
+
+    createNicknameLabel(nickname) {
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = 256;
+        canvas.height = 64;
+
+        // Draw background
+        context.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw text
+        context.font = 'bold 32px Arial';
+        context.fillStyle = 'white';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillText(nickname, canvas.width / 2, canvas.height / 2);
+
+        // Create texture
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.SpriteMaterial({ map: texture });
+        const sprite = new THREE.Sprite(material);
+        
+        // Position the label above the character
+        sprite.position.set(0, 3, 0);
+        sprite.scale.set(2, 0.5, 1);
+
+        return sprite;
+    }
+
+    removeRemotePlayer(id) {
+        const character = this.remotePlayers.get(id);
+        if (character) {
+            this.scene.remove(character.group);
+            this.remotePlayers.delete(id);
+        }
+    }
+
+    updateRemotePlayer(id, position, rotation) {
+        const character = this.remotePlayers.get(id);
+        if (character) {
+            character.setPosition(position.x, position.y, position.z);
+            character.group.rotation.y = rotation.y;
+        }
     }
 
     updateCamera() {
@@ -153,6 +327,26 @@ export class Engine {
             this.checkCollisions();
             // Finally update camera
             this.updateCamera();
+
+            // If multiplayer is enabled, send position update
+            if (this.options.enableMultiplayer && this.socket) {
+                this.socket.emit('playerUpdate', {
+                    position: {
+                        x: this.localPlayer.group.position.x,
+                        y: this.localPlayer.group.position.y,
+                        z: this.localPlayer.group.position.z
+                    },
+                    rotation: {
+                        y: this.localPlayer.group.rotation.y
+                    }
+                });
+            }
+        }
+
+        // Update remote players
+        for (const [id, character] of this.remotePlayers) {
+            // Update remote player animations if needed
+            // This is where you would implement interpolation for smooth movement
         }
 
         // Update OrbitControls
@@ -172,6 +366,12 @@ export class Engine {
         // Create and spawn the character
         this.localPlayer = this.starterCharacter.spawn(this.scene, this);
         
+        // Add nickname label for local player
+        if (this.playerNickname) {
+            const label = this.createNicknameLabel(this.playerNickname);
+            this.localPlayer.group.add(label);
+        }
+        
         // Wait for the next frame to ensure everything is initialized
         requestAnimationFrame(() => {
             // Set the initial position
@@ -181,6 +381,18 @@ export class Engine {
             this.camera.position.set(startX, startY + 5, startZ + 10);
             this.camera.lookAt(startX, startY, startZ);
             this.controls.target.set(startX, startY, startZ);
+
+            // If multiplayer is enabled, notify server of player spawn
+            if (this.options.enableMultiplayer && this.socket) {
+                this.socket.emit('playerSpawned', {
+                    position: {
+                        x: startX,
+                        y: startY,
+                        z: startZ
+                    },
+                    nickname: this.playerNickname
+                });
+            }
         });
         
         return this.localPlayer;
@@ -545,6 +757,10 @@ export class Engine {
         
         // Convert to hex number (not string)
         return (r << 16) | (g << 8) | b;
+    }
+
+    setPlaceTitle(title) {
+        document.title = `Engineish - ${title}`;
     }
 
     // ROBLOX XML parsing methods
