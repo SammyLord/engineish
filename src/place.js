@@ -24,7 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
         enableMultiplayer: false, // Disable multiplayer for now, it's a work in progress.
         websocketUrl: "ws://localhost:3000",
         enableHealth: true, // Enable health system
-        maxHealth: 100
+        maxHealth: 100,
+        engineDebug: false // Set to true to enable debug mode.
     });
 
     engine.setPlaceTitle("Engineish Sample Scene");

@@ -5,6 +5,7 @@ import { Part } from './Part';
 import { Folder } from './Folder';
 import { Group } from './Group';
 import { SpawnPoint } from './SpawnPoint';
+import { Scripting } from './Scripting';
 import { io } from 'socket.io-client';
 
 export class Engine {
@@ -18,6 +19,12 @@ export class Engine {
             engineDebug: false,
             ...options
         };
+        
+        // Initialize scripting system
+        this.scripting = new Scripting(this);
+        
+        // Register example scripts
+        this.registerExampleScripts();
         
         // Initialize multiplayer state
         this.remotePlayers = new Map();
@@ -191,6 +198,13 @@ export class Engine {
                     this.createRemotePlayer(player.id, player.position, player.nickname);
                 }
             });
+        });
+
+        // Handle tool actions from other players
+        this.socket.on('toolAction', (data) => {
+            if (this.scripting) {
+                this.scripting.handleRemoteToolAction(data);
+            }
         });
     }
 
@@ -1040,5 +1054,49 @@ export class Engine {
     // Update spawn points in animation loop
     updateSpawnPoints() {
         this.spawnPoints.forEach(spawnPoint => spawnPoint.update());
+    }
+
+    /**
+     * Register example scripts for tools
+     */
+    registerExampleScripts() {
+        const {
+            colorChangeScript,
+            sizeModifyScript,
+            rotationScript,
+            duplicateScript,
+            deleteScript,
+            healthScript
+        } = require('./exampleScripts');
+
+        // Register color change tool
+        this.scripting.registerScript('colorChange', colorChangeScript, {
+            requiresSelection: true
+        });
+
+        // Register size modification tool
+        this.scripting.registerScript('sizeModify', sizeModifyScript, {
+            requiresSelection: true
+        });
+
+        // Register rotation tool
+        this.scripting.registerScript('rotate', rotationScript, {
+            requiresSelection: true
+        });
+
+        // Register duplicate tool
+        this.scripting.registerScript('duplicate', duplicateScript, {
+            requiresSelection: true
+        });
+
+        // Register delete tool
+        this.scripting.registerScript('delete', deleteScript, {
+            requiresSelection: true
+        });
+
+        // Register health tool
+        this.scripting.registerScript('health', healthScript, {
+            requiresSelection: true
+        });
     }
 } 
