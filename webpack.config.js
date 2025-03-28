@@ -1,6 +1,7 @@
 const path = require('path');
 
 module.exports = {
+  name: 'engineish',
   entry: './src/place.js',
   output: {
     path: path.resolve(__dirname, 'dist'),
@@ -24,4 +25,6 @@ module.exports = {
       },
     ],
   },
+  // SPL-R5 License
+  license: 'SPL-R5',
 }; 
