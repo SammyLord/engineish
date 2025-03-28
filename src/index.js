@@ -28,33 +28,85 @@ document.addEventListener('DOMContentLoaded', () => {
         const house = engine.createGroup('House');
 
         // House dimensions
-        const houseWidth = 8;
-        const houseDepth = 8;
-        const houseHeight = 4;
+        const playerHeight = 4; // Player is about 4 units tall
+        const houseWidth = 24; // 3x player width (8 units)
+        const houseDepth = 24; // 3x player depth (8 units)
+        const houseHeight = 14; // 3.5x player height
         const wallThickness = 0.5;
-        const doorWidth = 1.5;  // 1.5x player size
-        const doorHeight = 2.5; // Tall enough for player
+        const doorThickness = 3
+        const doorWidth = 4;  // Door width (wider)
+        const doorHeight = 5; // Door height (taller)
 
-        // Create walls
-        // Front wall (with door)
-        const frontWall = new Part('box', {
+        // Create floor
+        const floor = new Part('box', {
             width: houseWidth,
-            height: houseHeight,
-            depth: wallThickness,
-            color: 0xcccccc,
+            height: wallThickness,
+            depth: houseDepth,
+            color: 0xffff00, // Yellow
             canCollide: true
         });
-        frontWall.setupCollision();
-        frontWall.setPosition(0, houseHeight/2, houseDepth/2);
-        engine.addPart(frontWall);
-        house.add(frontWall);
+        floor.setupCollision();
+        floor.setPosition(0, 0, 0);
+        engine.addPart(floor);
+        house.add(floor);
+
+        // Create door frame (non-collidable)
+        const doorFrame = new Part('box', {
+            width: doorWidth,
+            height: doorHeight,
+            depth: doorThickness,
+            color: 0x000000, // Black
+            canCollide: false // Door frame doesn't collide
+        });
+        doorFrame.setupCollision();
+        doorFrame.setPosition(0, doorHeight/2, houseDepth/2 + wallThickness/2);
+        engine.addPart(doorFrame);
+        house.add(doorFrame);
+
+        // Create walls
+        // Front wall sections (with door)
+        const doorLeftWall = new Part('box', {
+            width: (houseWidth - doorWidth) / 1.36,
+            height: houseHeight,
+            depth: wallThickness,
+            color: 0xff0000, // Red
+            canCollide: true
+        });
+        doorLeftWall.setupCollision();
+        doorLeftWall.setPosition(-houseWidth/2.6, houseHeight/2, houseDepth/2);
+        engine.addPart(doorLeftWall);
+        house.add(doorLeftWall);
+
+        const doorRightWall = new Part('box', {
+            width: (houseWidth - doorWidth) / 1.36,
+            height: houseHeight,
+            depth: wallThickness,
+            color: 0xff0000, // Red
+            canCollide: true
+        });
+        doorRightWall.setupCollision();
+        doorRightWall.setPosition(houseWidth/2.6, houseHeight/2, houseDepth/2);
+        engine.addPart(doorRightWall);
+        house.add(doorRightWall);
+
+        const doorTopWall = new Part('box', {
+            width: doorWidth * 1.25,
+            height: houseHeight - doorHeight,
+            depth: wallThickness,
+            color: 0xff0000, // Red
+            canCollide: true
+        });
+        doorTopWall.setupCollision();
+        doorTopWall.setPosition(0, houseHeight - (houseHeight - doorHeight)/2, houseDepth/2);
+        engine.addPart(doorTopWall);
+        house.add(doorTopWall);
 
         // Back wall
         const backWall = new Part('box', {
             width: houseWidth,
             height: houseHeight,
             depth: wallThickness,
-            color: 0xcccccc,
+            color: 0xff0000, // Red
             canCollide: true
         });
         backWall.setupCollision();
@@ -67,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
             width: wallThickness,
             height: houseHeight,
             depth: houseDepth,
-            color: 0xcccccc,
+            color: 0xff0000, // Red
             canCollide: true
         });
         leftWall.setupCollision();
@@ -80,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
             width: wallThickness,
             height: houseHeight,
             depth: houseDepth,
-            color: 0xcccccc,
+            color: 0xff0000, // Red
             canCollide: true
         });
         rightWall.setupCollision();
@@ -93,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
             width: houseWidth,
             height: wallThickness,
             depth: houseDepth,
-            color: 0xcccccc,
+            color: 0xff0000, // Red
             canCollide: true
         });
         ceiling.setupCollision();
@@ -104,12 +156,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // Roof (cone)
         const roof = new Part('cone', {
             radius: Math.sqrt(houseWidth * houseWidth + houseDepth * houseDepth) / 2,
-            height: 3,
-            color: 0x8b4513,
+            height: 4,
+            color: 0x0000ff, // Blue
             canCollide: true
         });
         roof.setupCollision();
-        roof.setPosition(0, houseHeight + 1.5, 0); // Position at top of walls
+        roof.setPosition(0, houseHeight + 2, 0); // Position at top of walls
         engine.addPart(roof);
         house.add(roof);
 
