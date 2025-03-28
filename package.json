@@ -2,7 +2,7 @@
   "name": "engineish",
   "version": "1.0.0",
   "description": "A THREE.js middleware providing ROBLOX-like scripting capabilities",
-  "main": "src/index.js",
+  "main": "src/place.js",
   "author": "Sneed Group",
   "license": "SEE LICENSE IN LICENSE",
   "scripts": {

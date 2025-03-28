@@ -133,4 +133,4 @@ All parts and groups support the following properties:
 
 ## License
 
-MIT 
+SPL-R5 EX (New to this codebase.)

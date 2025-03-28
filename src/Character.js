@@ -126,6 +126,13 @@ export class Character {
             case 's': this.keys.s = true; break;
             case 'd': this.keys.d = true; break;
             case 'control': this.keys.control = true; break;
+            // Add test key for damage only if debug is enabled
+            case 'x':
+                if (this.engine && this.engine.options.engineDebug) {
+                    console.log('Taking test damage');
+                    this.takeDamage(50);
+                }
+                break;
         }
     }
 
@@ -300,8 +307,16 @@ export class Character {
         this.properties.health = Math.max(0, this.properties.health - amount);
         this.properties.lastDamageTime = currentTime;
 
+        if (this.engine && this.engine.options.engineDebug) {
+            console.log(`Player took ${amount} damage. Health now: ${this.properties.health}`);
+        }
+
         // Flash red when taking damage
         this.flashRed();
+
+        if (this.isDead() && this.engine && this.engine.options.engineDebug) {
+            console.log('Player has died!');
+        }
 
         return true;
     }
@@ -319,20 +334,24 @@ export class Character {
     }
 
     flashRed() {
-        const originalColors = {};
-        Object.values(this.parts).forEach(part => {
-            originalColors[part] = part.mesh.material.color.getHex();
+        const originalColors = new Map();
+        Object.entries(this.parts).forEach(([partName, part]) => {
+            originalColors.set(partName, part.mesh.material.color.getHex());
             part.mesh.material.color.setHex(0xff0000);
         });
 
         setTimeout(() => {
-            Object.entries(originalColors).forEach(([part, color]) => {
-                this.parts[part].mesh.material.color.setHex(color);
+            Object.entries(this.parts).forEach(([partName, part]) => {
+                part.mesh.material.color.setHex(originalColors.get(partName));
             });
         }, 100);
     }
 
     isDead() {
-        return this.properties.health <= 0;
+        const dead = this.properties.health <= 0;
+        if (dead && this.engine && this.engine.options.engineDebug) {
+            console.log('isDead check: Player is dead, health is', this.properties.health);
+        }
+        return dead;
     }
 } 

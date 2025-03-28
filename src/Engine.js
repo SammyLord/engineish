@@ -15,6 +15,7 @@ export class Engine {
             websocketUrl: 'http://localhost:3000',
             enableHealth: false,
             maxHealth: 100,
+            engineDebug: false,
             ...options
         };
         
@@ -260,7 +261,17 @@ export class Engine {
         if (Math.abs(playerPos.x) > maxAllowedDistance || 
             Math.abs(playerPos.y) > maxAllowedDistance || 
             Math.abs(playerPos.z) > maxAllowedDistance) {
-            this.localPlayer.setPosition(0, 2, 0);
+            
+            if (this.options.enableHealth) {
+                // Deal lethal damage when health is enabled
+                if (this.options.engineDebug) {
+                    console.log('Player out of bounds - dealing lethal damage');
+                }
+                this.localPlayer.takeDamage(this.localPlayer.getMaxHealth());
+            } else {
+                // Instant respawn when health is disabled
+                this.localPlayer.setPosition(0, 2, 0);
+            }
             return;
         }
 
@@ -341,6 +352,9 @@ export class Engine {
 
             // Check if player is dead and respawn if needed
             if (this.options.enableHealth && this.localPlayer.isDead()) {
+                if (this.options.engineDebug) {
+                    console.log('Detected dead player in animate loop, triggering respawn...');
+                }
                 this.respawnPlayer();
             }
 
@@ -965,20 +979,50 @@ export class Engine {
         spawnPoint.setPosition(x, y, z);
         this.scene.add(spawnPoint.mesh);
         this.spawnPoints.push(spawnPoint);
+        if (this.options.engineDebug) {
+            console.log(`Created spawn point at (${x}, ${y}, ${z}). Total spawn points: ${this.spawnPoints.length}`);
+        }
         return spawnPoint;
     }
 
     respawnPlayer() {
-        if (!this.localPlayer || this.spawnPoints.length === 0) return;
+        if (!this.localPlayer || this.spawnPoints.length === 0) {
+            if (this.options.engineDebug) {
+                console.warn('No spawn points available for respawning');
+            }
+            return;
+        }
 
+        if (this.options.engineDebug) {
+            console.log('Starting respawn process...');
+            console.log('Available spawn points:', this.spawnPoints.length);
+        }
+        
         // Select a random spawn point
         const randomIndex = Math.floor(Math.random() * this.spawnPoints.length);
+        if (this.options.engineDebug) {
+            console.log('Selected spawn point index:', randomIndex);
+        }
+        
         const spawnPoint = this.spawnPoints[randomIndex];
+        if (!spawnPoint) {
+            if (this.options.engineDebug) {
+                console.error('Failed to get spawn point at index', randomIndex);
+            }
+            return;
+        }
+
         const spawnPos = spawnPoint.getSpawnPosition();
+        if (this.options.engineDebug) {
+            console.log('Spawn position:', spawnPos);
+        }
 
         // Reset player position and health
         this.localPlayer.setPosition(spawnPos.x, spawnPos.y, spawnPos.z);
         this.localPlayer.setHealth(this.localPlayer.getMaxHealth());
+        
+        // Reset velocity to prevent momentum carrying through respawn
+        this.localPlayer.properties.velocity.set(0, 0, 0);
         
         // Give brief invulnerability after respawning
         this.localPlayer.setInvulnerable(2000); // 2 seconds of invulnerability
@@ -987,6 +1031,10 @@ export class Engine {
         this.camera.position.set(spawnPos.x, spawnPos.y + 5, spawnPos.z + 10);
         this.camera.lookAt(spawnPos.x, spawnPos.y, spawnPos.z);
         this.controls.target.set(spawnPos.x, spawnPos.y, spawnPos.z);
+
+        if (this.options.engineDebug) {
+            console.log('Respawn complete. New position:', this.localPlayer.group.position);
+        }
     }
 
     // Update spawn points in animation loop

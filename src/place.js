@@ -1,3 +1,10 @@
+// This is the main file for the Engineish place.
+// It is used to initialize the engine and create the scene.
+// This default place is a simple house with a door and a roof.
+// It is used to test the engine and its features.
+// It is also licensed under the CC0 license.
+// https://creativecommons.org/publicdomain/zero/1.0/
+
 import { Engine } from './Engine';
 import { Part } from './Part';
 import { Folder } from './Folder';
@@ -31,9 +38,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Create spawn points
         engine.createSpawnPoint(0, 0, 0); // Center spawn
-        engine.createSpawnPoint(-10, 0, -10); // Corner spawn
-        engine.createSpawnPoint(10, 0, 10); // Opposite corner spawn
-        engine.createSpawnPoint(0, 0, -15); // Back spawn
+        engine.createSpawnPoint(-20, 0, -20); // Far corner spawn
+        engine.createSpawnPoint(20, 0, 20); // Opposite far corner spawn
+        engine.createSpawnPoint(0, 0, -30); // Far back spawn
+        engine.createSpawnPoint(15, 0, -15); // Diagonal spawn
 
         // Create a group for a house
         const house = engine.createGroup('House');
