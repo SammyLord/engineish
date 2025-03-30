@@ -25,6 +25,10 @@ function validateNickname(nickname) {
     return nickname.trim();
 }
 
+// Default health settings
+const DEFAULT_MAX_HEALTH = 100;
+const DEFAULT_HEALTH = 100;
+
 io.on('connection', (socket) => {
     console.log('Player connected:', socket.id);
 
@@ -33,25 +37,32 @@ io.on('connection', (socket) => {
         // Validate and store nickname
         const nickname = validateNickname(data.nickname || `Player${socket.id.slice(0, 4)}`);
 
-        // Store player data
+        // Store player data with health
         players.set(socket.id, {
             position: data.position,
             rotation: { y: 0 },
-            nickname: nickname
+            nickname: nickname,
+            health: DEFAULT_HEALTH,
+            maxHealth: DEFAULT_MAX_HEALTH,
+            isDead: false
         });
 
         // Broadcast to all other players that a new player has joined
         socket.broadcast.emit('playerJoined', {
             id: socket.id,
             position: data.position,
-            nickname: nickname
+            nickname: nickname,
+            health: DEFAULT_HEALTH,
+            maxHealth: DEFAULT_MAX_HEALTH
         });
 
         // Send current players to the new player
         const currentPlayers = Array.from(players.entries()).map(([id, data]) => ({
             id,
             position: data.position,
-            nickname: data.nickname
+            nickname: data.nickname,
+            health: data.health,
+            maxHealth: data.maxHealth
         }));
         socket.emit('currentPlayers', currentPlayers);
     });
@@ -71,6 +82,50 @@ io.on('connection', (socket) => {
             position: data.position,
             rotation: data.rotation
         });
+    });
+
+    // Handle health updates
+    socket.on('healthUpdate', (data) => {
+        const playerData = players.get(socket.id);
+        if (playerData) {
+            // Update health
+            playerData.health = Math.max(0, Math.min(data.health, playerData.maxHealth));
+            playerData.isDead = playerData.health <= 0;
+
+            // Broadcast health update to all players
+            io.emit('healthUpdate', {
+                id: socket.id,
+                health: playerData.health,
+                maxHealth: playerData.maxHealth,
+                isDead: playerData.isDead
+            });
+
+            // If player died, broadcast death event
+            if (playerData.isDead) {
+                io.emit('playerDied', {
+                    id: socket.id
+                });
+            }
+        }
+    });
+
+    // Handle player respawn
+    socket.on('playerRespawned', (data) => {
+        const playerData = players.get(socket.id);
+        if (playerData) {
+            // Reset health and position
+            playerData.health = playerData.maxHealth;
+            playerData.isDead = false;
+            playerData.position = data.position;
+
+            // Broadcast respawn to all players
+            io.emit('playerRespawned', {
+                id: socket.id,
+                position: data.position,
+                health: playerData.health,
+                maxHealth: playerData.maxHealth
+            });
+        }
     });
 
     // Handle nickname changes
