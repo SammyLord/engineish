@@ -30,6 +30,22 @@ const DEFAULT_MAX_HEALTH = 100;
 const DEFAULT_HEALTH = 100;
 const INVULNERABILITY_DURATION = 2000; // 2 seconds of invulnerability after respawn
 
+// Tool action validation
+function validateToolAction(data) {
+    if (!data.toolName || !data.context) {
+        return false;
+    }
+    return true;
+}
+
+// Hopperbin validation
+function validateHopperbin(data) {
+    if (!data.name || !data.options) {
+        return false;
+    }
+    return true;
+}
+
 io.on('connection', (socket) => {
     console.log('Player connected:', socket.id);
 
@@ -47,7 +63,8 @@ io.on('connection', (socket) => {
             maxHealth: DEFAULT_MAX_HEALTH,
             isDead: false,
             isInvulnerable: false,
-            lastDamageTime: 0
+            lastDamageTime: 0,
+            hopperbins: new Map() // Store player's hopperbins
         });
 
         // Broadcast to all other players that a new player has joined
@@ -147,6 +164,42 @@ io.on('connection', (socket) => {
                 }
             }, INVULNERABILITY_DURATION);
         }
+    });
+
+    // Handle tool actions (matching Scripting.js tool action handling)
+    socket.on('toolAction', (data) => {
+        // Validate tool action data
+        if (!validateToolAction(data)) {
+            console.warn('Invalid tool action received:', data);
+            return;
+        }
+
+        // Broadcast tool action to all other players
+        socket.broadcast.emit('toolAction', {
+            id: socket.id,
+            toolName: data.toolName,
+            context: data.context
+        });
+    });
+
+    // Handle hopperbin actions
+    socket.on('hopperbinAction', (data) => {
+        const playerData = players.get(socket.id);
+        if (!playerData || !validateHopperbin(data)) {
+            console.warn('Invalid hopperbin action received:', data);
+            return;
+        }
+
+        // Store hopperbin in player's inventory
+        playerData.hopperbins.set(data.name, data);
+
+        // Broadcast hopperbin action to all other players
+        socket.broadcast.emit('hopperbinAction', {
+            id: socket.id,
+            name: data.name,
+            options: data.options,
+            action: data.action // 'equip', 'unequip', 'activate', 'deactivate'
+        });
     });
 
     // Handle nickname changes

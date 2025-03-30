@@ -9,6 +9,7 @@ import { Engine } from './Engine';
 import { Part } from './Part';
 import { Folder } from './Folder';
 import { Group } from './Group';
+import { Hopperbin } from './Hopperbin';
 
 // Wait for DOM to be ready
 document.addEventListener('DOMContentLoaded', () => {
@@ -25,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
         websocketUrl: "ws://localhost:3000",
         enableHealth: true, // Enable health system
         maxHealth: 100,
-        engineDebug: false // Set to true to enable debug mode.
+        engineDebug: true // Enable debug mode for testing
     });
 
     engine.setPlaceTitle("Engineish Sample Scene");
@@ -194,6 +195,39 @@ document.addEventListener('DOMContentLoaded', () => {
         // Spawn the player
         const player = engine.spawn();
         player.setPosition(0, 2, 0); // Start slightly above ground
+
+        // Create a custom hopperbin
+        console.log('Creating Redifier Hopperbin...');
+        const myTool = new Hopperbin('Redifier', {
+            icon: '🔨',
+            description: 'Makes parts red',
+            requiresSelection: true,
+            script: (context) => {
+                console.log('Redifier script executing...', context);
+                const { selectedPart, engine } = context;
+                if (selectedPart) {
+                    console.log('Selected part found, changing color to red');
+                    selectedPart.setColor(0xff0000); // Example: turn it red
+                } else {
+                    console.log('No part selected');
+                }
+            }
+        });
+
+        // Add it to a character
+        console.log('Adding Hopperbin to player...');
+        const added = player.addHopperbin(myTool);
+        console.log('Hopperbin added:', added);
+
+        // Add a test part to try the tool on
+        const testPart = new Part('box', {
+            width: 2,
+            height: 2,
+            depth: 2,
+            color: 0x00ff00
+        });
+        testPart.setPosition(5, 2, 0);
+        engine.addPart(testPart);
     }
 
     // Create the example scene

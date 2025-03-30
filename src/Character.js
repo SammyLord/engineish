@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Part } from './Part';
+import { Hopperbin } from './Hopperbin';
 
 export class Character {
     constructor() {
@@ -9,6 +10,8 @@ export class Character {
         this.colorMenuOpen = false; // Track if color menu is open
         this.nametagMenuOpen = false; // Track if nametag menu is open
         this.nametag = null; // Store the nametag sprite
+        this.hopperbins = new Map(); // Store available hopperbins
+        this.activeHopperbin = null; // Currently equipped hopperbin
         this.properties = {
             position: { x: 0, y: 0, z: 0 },
             rotation: { x: 0, y: 0, z: 0 },
@@ -159,6 +162,32 @@ export class Character {
                     }
                 }
                 break;
+            case ' ': // Space bar for hopperbin activation
+                if (this.activeHopperbin) {
+                    e.preventDefault();
+                    this.activateHopperbin();
+                }
+                break;
+            case '-': // Minus key for hopperbin deactivation
+                if (this.activeHopperbin) {
+                    e.preventDefault();
+                    this.deactivateHopperbin();
+                }
+                break;
+            case 'escape': // Escape key to unequip hopperbin
+                if (this.activeHopperbin) {
+                    e.preventDefault();
+                    this.unequipHopperbin();
+                }
+                break;
+            case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9': case '0':
+                // Number keys for quick hopperbin selection
+                const index = e.key === '0' ? 9 : parseInt(e.key) - 1;
+                const hopperbins = Array.from(this.hopperbins.values());
+                if (hopperbins[index]) {
+                    this.equipHopperbin(hopperbins[index].name);
+                }
+                break;
             // Add test key for damage only if debug is enabled
             case 'x':
                 if (this.engine && this.engine.options.engineDebug) {
@@ -176,6 +205,12 @@ export class Character {
             case 's': this.keys.s = false; break;
             case 'd': this.keys.d = false; break;
             case 'control': this.keys.control = false; break;
+            case ' ': // Space bar for hopperbin deactivation
+                if (this.activeHopperbin) {
+                    e.preventDefault();
+                    this.deactivateHopperbin();
+                }
+                break;
         }
     }
 
@@ -673,5 +708,75 @@ export class Character {
 
         // Add nametag to character group
         this.group.add(this.nametag);
+    }
+
+    // Add Hopperbin methods
+    addHopperbin(hopperbin) {
+        if (hopperbin instanceof Hopperbin) {
+            this.hopperbins.set(hopperbin.name, hopperbin);
+            return true;
+        }
+        return false;
+    }
+
+    removeHopperbin(name) {
+        return this.hopperbins.delete(name);
+    }
+
+    getHopperbin(name) {
+        return this.hopperbins.get(name);
+    }
+
+    equipHopperbin(name) {
+        const hopperbin = this.hopperbins.get(name);
+        if (hopperbin) {
+            // Unequip current hopperbin if any
+            if (this.activeHopperbin) {
+                this.activeHopperbin.unequip();
+            }
+            this.activeHopperbin = hopperbin;
+            hopperbin.equip();
+            return true;
+        }
+        return false;
+    }
+
+    unequipHopperbin() {
+        if (this.activeHopperbin) {
+            this.activeHopperbin.unequip();
+            this.activeHopperbin = null;
+            return true;
+        }
+        return false;
+    }
+
+    activateHopperbin() {
+        if (this.activeHopperbin) {
+            // If the tool is already active, deactivate it
+            if (this.activeHopperbin.isActive) {
+                this.deactivateHopperbin();
+                return;
+            }
+
+            // Otherwise, activate it
+            if (this.activeHopperbin.activate()) {
+                // Execute the hopperbin's script with proper context
+                this.activeHopperbin.execute({
+                    selectedPart: this.engine.selectedPart,
+                    engine: this.engine,
+                    character: this
+                });
+            }
+        }
+    }
+
+    deactivateHopperbin() {
+        if (this.activeHopperbin) {
+            this.activeHopperbin.deactivate();
+            // Only clear selection if the tool requires it
+            if (this.engine && this.activeHopperbin.options.requiresSelection) {
+                this.engine.selectPart(null);
+            }
+        }
     }
 } 

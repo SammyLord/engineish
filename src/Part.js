@@ -15,6 +15,10 @@ export class Part {
         this.mesh = this.createMesh();
         this.setupCollision();
         this.applyProperties();
+
+        // Add selection-related properties
+        this.isSelected = false;
+        this.mesh.userData.part = this; // Reference to the Part instance
     }
 
     setupCollision() {
@@ -270,5 +274,20 @@ export class Part {
     // Clone the part
     clone() {
         return new Part(this.type, { ...this.properties });
+    }
+
+    // Selection methods
+    select() {
+        this.isSelected = true;
+        if (this.mesh.material.emissive) {
+            this.mesh.material.emissive.setHex(0x333333);
+        }
+    }
+
+    deselect() {
+        this.isSelected = false;
+        if (this.mesh.material.emissive) {
+            this.mesh.material.emissive.setHex(0x000000);
+        }
     }
 } 

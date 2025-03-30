@@ -6,11 +6,20 @@ import { Folder } from './Folder';
 import { Group } from './Group';
 import { SpawnPoint } from './SpawnPoint';
 import { Scripting } from './Scripting';
+import { Hopperbin } from './Hopperbin';
 import { io } from 'socket.io-client';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader';
 
 export class Engine {
+    // Add static properties for class exports
+    static Hopperbin = Hopperbin;
+    static Character = Character;
+    static Part = Part;
+    static Folder = Folder;
+    static Group = Group;
+    static SpawnPoint = SpawnPoint;
+
     constructor(container, options = {}) {
         this.container = container;
         this.options = {
@@ -27,6 +36,11 @@ export class Engine {
         
         // Register example scripts
         this.registerExampleScripts();
+        
+        // Initialize part selection
+        this.selectedPart = null;
+        this.raycaster = new THREE.Raycaster();
+        this.mouse = new THREE.Vector2();
         
         // Initialize multiplayer state
         this.remotePlayers = new Map();
@@ -102,6 +116,9 @@ export class Engine {
 
         // Handle window resize
         window.addEventListener('resize', () => this.onWindowResize(), false);
+
+        // Add click event listener for part selection
+        this.renderer.domElement.addEventListener('click', (event) => this.handleClick(event));
     }
 
     createNicknameUI() {
@@ -1257,5 +1274,67 @@ export class Engine {
                 console.error('Failed to spawn OBJ:', error);
                 throw error;
             });
+    }
+
+    /**
+     * Create a new Hopperbin tool
+     * @param {string} name - Name of the tool
+     * @param {Object} options - Tool options
+     * @returns {Hopperbin} The created Hopperbin
+     */
+    createHopperbin(name, options = {}) {
+        const hopperbin = new Hopperbin(name, options);
+        return hopperbin;
+    }
+
+    handleClick(event) {
+        // Calculate mouse position in normalized device coordinates (-1 to +1)
+        const rect = this.renderer.domElement.getBoundingClientRect();
+        this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        this.mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+        // Update the picking ray with the camera and mouse position
+        this.raycaster.setFromCamera(this.mouse, this.camera);
+
+        // Calculate objects intersecting the picking ray
+        const intersects = this.raycaster.intersectObjects(this.scene.children, true);
+
+        // Find the first intersected Part
+        for (const intersect of intersects) {
+            // Check if the intersected object or its parent is a Part
+            let current = intersect.object;
+            while (current) {
+                if (current.userData.part instanceof Part) {
+                    console.log('Selected part:', current.userData.part);
+                    this.selectPart(current.userData.part);
+                    return;
+                }
+                current = current.parent;
+            }
+        }
+
+        // If no part was found, deselect current part
+        console.log('No part selected');
+        this.selectPart(null);
+    }
+
+    selectPart(part) {
+        // Deselect previous part if any
+        if (this.selectedPart) {
+            this.selectedPart.deselect();
+        }
+
+        // Select new part
+        this.selectedPart = part;
+        if (part) {
+            part.select();
+            // Log the part's properties for debugging
+            console.log('Selected part properties:', {
+                id: part.id,
+                name: part.name,
+                position: part.position,
+                color: part.mesh.material.color.getHexString()
+            });
+        }
     }
 } 

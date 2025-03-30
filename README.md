@@ -160,6 +160,43 @@ player.sync({
 - `cone`: Conical shape
 - `truss`: Simple truss structure
 
+## Tools and Hopperbins
+
+The engine supports custom tools through the Hopperbin system. You can create and customize tools for your place:
+
+```javascript
+// Create a new Hopperbin tool using the Engine's Hopperbin class
+const myTool = new Engine.Hopperbin('MyTool', {
+    icon: '🔨', // Optional: Custom icon
+    description: 'A custom tool that does something', // Optional: Tool description
+    requiresSelection: true, // Optional: Whether the tool needs a selected part
+    syncMultiplayer: true, // Optional: Whether to sync tool actions in multiplayer
+    script: (context) => {
+        // Your tool's functionality here
+        const { selectedPart, engine } = context;
+        if (selectedPart) {
+            // Do something with the selected part
+            selectedPart.setColor(0xff0000); // Example: turn it red
+        }
+    }
+});
+
+// Add the tool to a character
+character.addHopperbin(myTool);
+```
+
+### Hopperbin Controls
+- Number keys (1-0): Quick select tools
+- Space bar: Activate/deactivate current tool
+
+### Hopperbin Properties
+- `name`: Name of the tool
+- `icon`: Visual icon for the tool
+- `description`: Tool description
+- `requiresSelection`: Whether the tool needs a selected part
+- `syncMultiplayer`: Whether to sync tool actions in multiplayer
+- `script`: Function that defines the tool's behavior
+
 ## Properties
 
 All parts and groups support the following properties:
