@@ -208,7 +208,7 @@ All parts and groups support the following properties:
 - `setScale(x, y, z)`: Set the scale in all dimensions
 - `setColor(color)`: Set the color (hex value)
 
-## Controls:
+## Default Controls:
 * WASD - move
 * CTRL - jump
 * Click/drag - pan camera
