@@ -2,6 +2,8 @@
 
 A THREE.js middleware that provides ROBLOX-like scripting capabilities for creating 3D games and experiences.
 
+Download the latest stable release [https://github.com/Sneed-Group/engineish/releases/latest](here) and view the source [here.](https://github.com/Sneed-Group/engineish)
+
 ## Features
 
 - Spawn characters with customizable models
