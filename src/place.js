@@ -218,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('Creating Damager Hopperbin...');
         const killer = new Hopperbin('Damager', {
             icon: '🔨',
-            description: 'Damages your player',
+            description: 'Damages a player',
             requiresSelection: true,
             script: (context) => {
                 console.log('Damager script executing...', context);
