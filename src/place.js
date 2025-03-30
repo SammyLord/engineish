@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
         websocketUrl: "ws://localhost:3000",
         enableHealth: true, // Enable health system
         maxHealth: 100,
-        engineDebug: true // Enable debug mode for testing
+        engineDebug: false // Enable debug mode for testing
     });
 
     engine.setPlaceTitle("Engineish Sample Scene");
