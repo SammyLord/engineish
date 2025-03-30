@@ -222,7 +222,13 @@ document.addEventListener('DOMContentLoaded', () => {
             requiresSelection: true,
             script: (context) => {
                 console.log('Damager script executing...', context);
-                player.takeDamage(10);
+                const { character, engine } = context;
+                if (character && character instanceof Character) {
+                    console.log('Selected character found, damaging...');
+                    character.takeDamage(10);
+                } else {
+                    console.log('No character selected');
+                }
             }
         });
 

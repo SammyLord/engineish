@@ -780,7 +780,7 @@ export class Character {
                 this.activeHopperbin.execute({
                     selectedPart: this.engine.selectedPart,
                     engine: this.engine,
-                    character: this
+                    character: this.engine.selectedPart instanceof Character ? this.engine.selectedPart : null
                 });
             }
         }

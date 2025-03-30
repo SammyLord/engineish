@@ -1294,9 +1294,13 @@ export class Engine {
         // Only allow part selection when a hopperbin is active
         if (!Hopperbin.currentHopperbin) {
             if (this.selectedPart) {
-                this.selectedPart.deselect();
+                if (this.selectedPart instanceof Character) {
+                    this.selectedPart.deselect();
+                } else if (this.selectedPart instanceof Part) {
+                    this.selectedPart.deselect();
+                }
             }
-            try { this.selectCharacter(null); } catch {}
+            this.selectedPart = null;
             return;
         }
 
@@ -1346,13 +1350,21 @@ export class Engine {
     selectPart(part) {
         // Deselect previous part if any
         if (this.selectedPart) {
-            this.selectedPart.deselect();
+            if (this.selectedPart instanceof Character) {
+                this.selectedPart.deselect();
+            } else if (this.selectedPart instanceof Part) {
+                this.selectedPart.deselect();
+            }
         }
         
         // Select new part
         this.selectedPart = part;
         if (part) {
-            part.select();
+            if (part instanceof Character) {
+                part.select();
+            } else if (part instanceof Part) {
+                part.select();
+            }
             // Log the part's properties for debugging
             console.log('Selected part properties:', {
                 id: part.id,
