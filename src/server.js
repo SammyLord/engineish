@@ -73,6 +73,41 @@ io.on('connection', (socket) => {
         });
     });
 
+    // Handle nickname changes
+    socket.on('nicknameChange', (data) => {
+        // Validate the new nickname
+        const newNickname = validateNickname(data.nickname);
+        
+        // Update player data
+        const playerData = players.get(socket.id);
+        if (playerData) {
+            playerData.nickname = newNickname;
+        }
+
+        // Broadcast nickname change to all other players
+        socket.broadcast.emit('nicknameChange', {
+            id: socket.id,
+            nickname: newNickname
+        });
+    });
+
+    // Handle character color changes
+    socket.on('characterColorChange', (data) => {
+        // Update player data with the new color
+        const playerData = players.get(socket.id);
+        if (playerData) {
+            playerData.colors = playerData.colors || {};
+            playerData.colors[data.partName] = data.color;
+        }
+
+        // Broadcast color change to all other players
+        socket.broadcast.emit('characterColorChange', {
+            id: socket.id,
+            partName: data.partName,
+            color: data.color
+        });
+    });
+
     // Handle disconnection
     socket.on('disconnect', () => {
         console.log('Player disconnected:', socket.id);

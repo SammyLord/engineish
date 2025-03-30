@@ -146,6 +146,10 @@ export class Part {
             case 'truss':
                 geometry = this.createTrussGeometry();
                 break;
+            case 'custom':
+                // For custom meshes (like OBJ files), return null
+                // The mesh will be set externally
+                return null;
             default:
                 console.warn(`Unknown part type: ${this.type}, defaulting to box`);
                 geometry = new THREE.BoxGeometry(1, 1, 1);
@@ -233,8 +237,17 @@ export class Part {
 
     setColor(color) {
         this.properties.color = color;
-        if (this.mesh.material) {
-            this.mesh.material.color.setHex(color);
+        if (this.mesh) {
+            if (this.mesh.material) {
+                this.mesh.material.color.setHex(color);
+            } else if (this.mesh.children) {
+                // Handle groups (like loaded OBJ files)
+                this.mesh.traverse((child) => {
+                    if (child instanceof THREE.Mesh) {
+                        child.material.color.setHex(color);
+                    }
+                });
+            }
         }
     }
 

@@ -7,6 +7,7 @@ import { Group } from './Group';
 import { SpawnPoint } from './SpawnPoint';
 import { Scripting } from './Scripting';
 import { io } from 'socket.io-client';
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
 
 export class Engine {
     constructor(container, options = {}) {
@@ -206,6 +207,28 @@ export class Engine {
                 this.scripting.handleRemoteToolAction(data);
             }
         });
+
+        // Handle character color changes from other players
+        this.socket.on('characterColorChange', (data) => {
+            const { playerId, partName, color } = data;
+            if (playerId !== this.playerId) {
+                const remotePlayer = this.remotePlayers.get(playerId);
+                if (remotePlayer) {
+                    remotePlayer.handleRemoteColorChange(partName, color);
+                }
+            }
+        });
+
+        // Handle nickname changes from other players
+        this.socket.on('nicknameChange', (data) => {
+            const { playerId, nickname } = data;
+            if (playerId !== this.playerId) {
+                const remotePlayer = this.remotePlayers.get(playerId);
+                if (remotePlayer) {
+                    remotePlayer.updateNametag(nickname);
+                }
+            }
+        });
     }
 
     createRemotePlayer(id, position, nickname) {
@@ -214,8 +237,7 @@ export class Engine {
         character.setPosition(position.x, position.y, position.z);
         
         // Create nickname label
-        const label = this.createNicknameLabel(nickname);
-        character.group.add(label);
+        character.updateNametag(nickname);
         
         this.remotePlayers.set(id, character);
     }
@@ -1098,5 +1120,87 @@ export class Engine {
         this.scripting.registerScript('health', healthScript, {
             requiresSelection: true
         });
+    }
+
+    loadOBJ(url, options = {}) {
+        return new Promise((resolve, reject) => {
+            const loader = new OBJLoader();
+            
+            loader.load(
+                url,
+                (object) => {
+                    // Create a group to hold the loaded object
+                    const group = new THREE.Group();
+                    
+                    // Clone the loaded object to avoid sharing materials
+                    const clonedObject = object.clone();
+                    
+                    // Apply default material if none exists
+                    clonedObject.traverse((child) => {
+                        if (child instanceof THREE.Mesh) {
+                            if (!child.material) {
+                                child.material = new THREE.MeshStandardMaterial({
+                                    color: options.color || 0x808080,
+                                    metalness: 0.5,
+                                    roughness: 0.5
+                                });
+                            }
+                        }
+                    });
+                    
+                    // Add the cloned object to our group
+                    group.add(clonedObject);
+                    
+                    // Center the object if requested
+                    if (options.center) {
+                        const box = new THREE.Box3().setFromObject(group);
+                        const center = box.getCenter(new THREE.Vector3());
+                        group.position.sub(center);
+                    }
+                    
+                    // Scale the object if requested
+                    if (options.scale) {
+                        group.scale.set(options.scale, options.scale, options.scale);
+                    }
+                    
+                    resolve(group);
+                },
+                (xhr) => {
+                    console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+                },
+                (error) => {
+                    console.error('Error loading OBJ:', error);
+                    reject(error);
+                }
+            );
+        });
+    }
+
+    spawnOBJ(url, position = { x: 0, y: 0, z: 0 }, options = {}) {
+        return this.loadOBJ(url, options)
+            .then(group => {
+                // Create a new Part to wrap the OBJ
+                const part = new Part('custom', {
+                    position: position,
+                    rotation: options.rotation || { x: 0, y: 0, z: 0 },
+                    scale: options.scale || 1,
+                    canCollide: options.canCollide !== false
+                });
+                
+                // Replace the default mesh with our loaded group
+                part.mesh = group;
+                
+                // Add to scene
+                this.scene.add(group);
+                
+                // Update collision box
+                part.updateBoundingBox();
+                
+                return part;
+            })
+            .catch(error => {
+                console.error('Failed to spawn OBJ:', error);
+                throw error;
+            });
     }
 } 

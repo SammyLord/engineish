@@ -6,6 +6,9 @@ export class Character {
         this.group = new THREE.Group();
         this.parts = {};
         this.engine = null; // Will be set when spawned
+        this.colorMenuOpen = false; // Track if color menu is open
+        this.nametagMenuOpen = false; // Track if nametag menu is open
+        this.nametag = null; // Store the nametag sprite
         this.properties = {
             position: { x: 0, y: 0, z: 0 },
             rotation: { x: 0, y: 0, z: 0 },
@@ -114,9 +117,13 @@ export class Character {
             control: false
         };
 
+        // Bind the event handlers to this instance
+        this.handleKeyDown = this.handleKeyDown.bind(this);
+        this.handleKeyUp = this.handleKeyUp.bind(this);
+
         // Add key listeners
-        window.addEventListener('keydown', (e) => this.handleKeyDown(e));
-        window.addEventListener('keyup', (e) => this.handleKeyUp(e));
+        window.addEventListener('keydown', this.handleKeyDown);
+        window.addEventListener('keyup', this.handleKeyUp);
     }
 
     handleKeyDown(e) {
@@ -126,6 +133,32 @@ export class Character {
             case 's': this.keys.s = true; break;
             case 'd': this.keys.d = true; break;
             case 'control': this.keys.control = true; break;
+            case 'c': // Add color menu shortcut
+                // Only open menu if we're not in a text input field and menu isn't already open
+                if (!e.target.matches('input[type="text"], textarea') && !e.repeat && !this.colorMenuOpen) {
+                    console.log('Opening color menu...'); // Debug log
+                    e.preventDefault();
+                    e.stopPropagation(); // Stop event from bubbling up
+                    try {
+                        this.createColorMenu();
+                    } catch (error) {
+                        console.error('Error creating color menu:', error);
+                    }
+                }
+                break;
+            case 'n': // Add nametag menu shortcut
+                // Only open menu if we're not in a text input field and menu isn't already open
+                if (!e.target.matches('input[type="text"], textarea') && !e.repeat && !this.nametagMenuOpen && this.engine && this.engine.options.enableMultiplayer) {
+                    console.log('Opening nametag menu...'); // Debug log
+                    e.preventDefault();
+                    e.stopPropagation(); // Stop event from bubbling up
+                    try {
+                        this.createNametagMenu();
+                    } catch (error) {
+                        console.error('Error creating nametag menu:', error);
+                    }
+                }
+                break;
             // Add test key for damage only if debug is enabled
             case 'x':
                 if (this.engine && this.engine.options.engineDebug) {
@@ -353,5 +386,292 @@ export class Character {
             console.log('isDead check: Player is dead, health is', this.properties.health);
         }
         return dead;
+    }
+
+    setPartColor(partName, color) {
+        if (this.parts[partName]) {
+            this.parts[partName].setColor(color);
+        } else if (this.group && this.group.children) {
+            // For custom models, try to find the mesh by name
+            const mesh = this.group.children.find(child => 
+                child.name.toLowerCase().includes(partName.toLowerCase())
+            );
+            if (mesh && mesh.material) {
+                mesh.material.color.setHex(color);
+            }
+        }
+
+        // Emit color change event if multiplayer is enabled
+        if (this.engine && this.engine.options.enableMultiplayer && this.engine.socket) {
+            this.engine.socket.emit('characterColorChange', {
+                partName: partName,
+                color: color
+            });
+        }
+    }
+
+    createColorMenu() {
+        if (this.colorMenuOpen) return; // Don't create menu if it's already open
+        this.colorMenuOpen = true; // Mark menu as open
+
+        console.log('Starting createColorMenu...'); // Debug log
+        // Create menu container
+        const menu = document.createElement('div');
+        console.log('Created menu container'); // Debug log
+        menu.style.position = 'fixed';
+        menu.style.top = '20px';
+        menu.style.right = '20px';
+        menu.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        menu.style.padding = '15px';
+        menu.style.borderRadius = '5px';
+        menu.style.color = 'white';
+        menu.style.fontFamily = 'Arial, sans-serif';
+        menu.style.zIndex = '1000'; // Ensure menu appears above other elements
+
+        // Add title
+        const title = document.createElement('h3');
+        title.textContent = 'Character Colors';
+        title.style.margin = '0 0 10px 0';
+        menu.appendChild(title);
+        console.log('Added title'); // Debug log
+
+        // Determine if we're using a custom model
+        const isCustomModel = !this.parts || Object.keys(this.parts).length === 0;
+        console.log('Model type:', isCustomModel ? 'custom' : 'default'); // Debug log
+        
+        if (isCustomModel && this.group && this.group.children) {
+            console.log('Processing custom model...'); // Debug log
+            // For custom models, create color pickers for each mesh
+            this.group.children.forEach((mesh, index) => {
+                if (mesh.material) {
+                    const partContainer = document.createElement('div');
+                    partContainer.style.marginBottom = '10px';
+
+                    const label = document.createElement('label');
+                    label.textContent = (mesh.name || `Part ${index + 1}`) + ': ';
+                    label.style.display = 'inline-block';
+                    label.style.width = '120px';
+
+                    const colorPicker = document.createElement('input');
+                    colorPicker.type = 'color';
+                    colorPicker.value = '#' + mesh.material.color.getHexString();
+                    colorPicker.style.verticalAlign = 'middle';
+
+                    colorPicker.addEventListener('input', (e) => {
+                        const color = parseInt(e.target.value.replace('#', ''), 16);
+                        const partName = mesh.name || `Part${index + 1}`;
+                        this.setPartColor(partName, color);
+                    });
+
+                    partContainer.appendChild(label);
+                    partContainer.appendChild(colorPicker);
+                    menu.appendChild(partContainer);
+                }
+            });
+        } else {
+            console.log('Processing default model...'); // Debug log
+            // For default character model
+            const parts = {
+                head: 'Head',
+                body: 'Body',
+                leftArm: 'Left Arm',
+                rightArm: 'Right Arm',
+                leftLeg: 'Left Leg',
+                rightLeg: 'Right Leg'
+            };
+
+            Object.entries(parts).forEach(([partName, displayName]) => {
+                const partContainer = document.createElement('div');
+                partContainer.style.marginBottom = '10px';
+
+                const label = document.createElement('label');
+                label.textContent = displayName + ': ';
+                label.style.display = 'inline-block';
+                label.style.width = '80px';
+
+                const colorPicker = document.createElement('input');
+                colorPicker.type = 'color';
+                colorPicker.value = '#' + this.parts[partName].mesh.material.color.getHexString();
+                colorPicker.style.verticalAlign = 'middle';
+
+                colorPicker.addEventListener('input', (e) => {
+                    const color = parseInt(e.target.value.replace('#', ''), 16);
+                    this.setPartColor(partName, color);
+                });
+
+                partContainer.appendChild(label);
+                partContainer.appendChild(colorPicker);
+                menu.appendChild(partContainer);
+            });
+        }
+
+        // Add close button
+        const closeButton = document.createElement('button');
+        closeButton.textContent = 'Close';
+        closeButton.style.marginTop = '10px';
+        closeButton.style.padding = '5px 10px';
+        closeButton.style.backgroundColor = '#444';
+        closeButton.style.border = 'none';
+        closeButton.style.color = 'white';
+        closeButton.style.cursor = 'pointer';
+        closeButton.style.borderRadius = '3px';
+
+        closeButton.addEventListener('click', () => {
+            menu.remove();
+            this.colorMenuOpen = false;
+        });
+
+        menu.appendChild(closeButton);
+        console.log('Appending menu to document...'); // Debug log
+        document.body.appendChild(menu);
+        console.log('Menu creation complete'); // Debug log
+    }
+
+    // Add method to handle incoming color changes from other players
+    handleRemoteColorChange(partName, color) {
+        if (this.parts[partName]) {
+            this.parts[partName].setColor(color);
+        } else if (this.group && this.group.children) {
+            const mesh = this.group.children.find(child => 
+                child.name.toLowerCase().includes(partName.toLowerCase())
+            );
+            if (mesh && mesh.material) {
+                mesh.material.color.setHex(color);
+            }
+        }
+    }
+
+    createNametagMenu() {
+        if (this.nametagMenuOpen) return; // Don't create menu if it's already open
+        this.nametagMenuOpen = true; // Mark menu as open
+
+        console.log('Starting createNametagMenu...'); // Debug log
+        // Create menu container
+        const menu = document.createElement('div');
+        console.log('Created menu container'); // Debug log
+        menu.style.position = 'fixed';
+        menu.style.top = '20px';
+        menu.style.right = '20px';
+        menu.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        menu.style.padding = '15px';
+        menu.style.borderRadius = '5px';
+        menu.style.color = 'white';
+        menu.style.fontFamily = 'Arial, sans-serif';
+        menu.style.zIndex = '1000'; // Ensure menu appears above other elements
+
+        // Add title
+        const title = document.createElement('h3');
+        title.textContent = 'Change Nickname';
+        title.style.margin = '0 0 10px 0';
+        menu.appendChild(title);
+
+        // Create input field
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = 'Enter new nickname';
+        input.style.width = '200px';
+        input.style.padding = '5px';
+        input.style.marginBottom = '10px';
+        input.style.borderRadius = '3px';
+        input.style.border = 'none';
+        input.value = this.engine.playerNickname || '';
+        menu.appendChild(input);
+
+        // Create submit button
+        const submitButton = document.createElement('button');
+        submitButton.textContent = 'Update';
+        submitButton.style.padding = '5px 10px';
+        submitButton.style.marginRight = '5px';
+        submitButton.style.backgroundColor = '#4CAF50';
+        submitButton.style.border = 'none';
+        submitButton.style.color = 'white';
+        submitButton.style.cursor = 'pointer';
+        submitButton.style.borderRadius = '3px';
+
+        // Create close button
+        const closeButton = document.createElement('button');
+        closeButton.textContent = 'Close';
+        closeButton.style.padding = '5px 10px';
+        closeButton.style.backgroundColor = '#444';
+        closeButton.style.border = 'none';
+        closeButton.style.color = 'white';
+        closeButton.style.cursor = 'pointer';
+        closeButton.style.borderRadius = '3px';
+
+        // Add buttons container
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.marginTop = '10px';
+        buttonContainer.appendChild(submitButton);
+        buttonContainer.appendChild(closeButton);
+        menu.appendChild(buttonContainer);
+
+        // Handle nickname update
+        const updateNickname = () => {
+            const newNickname = input.value.trim();
+            if (newNickname) {
+                this.engine.playerNickname = newNickname;
+                this.updateNametag(newNickname);
+                
+                // Emit nickname change event if multiplayer is enabled
+                if (this.engine.options.enableMultiplayer && this.engine.socket) {
+                    this.engine.socket.emit('nicknameChange', {
+                        nickname: newNickname
+                    });
+                }
+            }
+        };
+
+        // Add event listeners
+        submitButton.addEventListener('click', updateNickname);
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                updateNickname();
+            }
+        });
+
+        closeButton.addEventListener('click', () => {
+            menu.remove();
+            this.nametagMenuOpen = false;
+        });
+
+        console.log('Appending menu to document...'); // Debug log
+        document.body.appendChild(menu);
+        console.log('Menu creation complete'); // Debug log
+    }
+
+    updateNametag(nickname) {
+        // Remove existing nametag if it exists
+        if (this.nametag) {
+            this.group.remove(this.nametag);
+        }
+
+        // Create new nametag
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = 256;
+        canvas.height = 64;
+
+        // Draw background
+        context.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Draw text
+        context.font = 'bold 32px Arial';
+        context.fillStyle = 'white';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillText(nickname, canvas.width / 2, canvas.height / 2);
+
+        // Create texture
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.SpriteMaterial({ map: texture });
+        this.nametag = new THREE.Sprite(material);
+        
+        // Position the nametag above the character
+        this.nametag.position.set(0, 3, 0);
+        this.nametag.scale.set(2, 0.5, 1);
+
+        // Add nametag to character group
+        this.group.add(this.nametag);
     }
 } 
