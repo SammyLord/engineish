@@ -1296,6 +1296,7 @@ export class Engine {
             if (this.selectedPart) {
                 this.selectedPart.deselect();
             }
+            try { this.selectCharacter(null); } catch {}
             return;
         }
 
@@ -1310,9 +1311,22 @@ export class Engine {
         // Calculate objects intersecting the picking ray
         const intersects = this.raycaster.intersectObjects(this.scene.children, true);
 
-        // Find the first intersected Part
+        // First check for character selection
         for (const intersect of intersects) {
-            // Check if the intersected object or its parent is a Part
+            let current = intersect.object;
+            while (current) {
+                // Check if the object is part of a character
+                if (current.userData.character instanceof Character) {
+                    console.log('Selected character:', current.userData.character);
+                    this.selectCharacter(current.userData.character);
+                    return;
+                }
+                current = current.parent;
+            }
+        }
+
+        // If no character was found, check for part selection
+        for (const intersect of intersects) {
             let current = intersect.object;
             while (current) {
                 if (current.userData.part instanceof Part) {
@@ -1324,8 +1338,8 @@ export class Engine {
             }
         }
 
-        // If no part was found, deselect current part
-        console.log('No part selected');
+        // If no object was found, deselect current selection
+        console.log('No object selected');
         this.selectPart(null);
     }
 
@@ -1345,6 +1359,33 @@ export class Engine {
                 name: part.name,
                 position: part.position,
                 color: part.mesh.material.color.getHexString()
+            });
+        }
+    }
+
+    selectCharacter(character) {
+        // Deselect previous part if any
+        if (this.selectedPart) {
+            if (this.selectedPart instanceof Character) {
+                this.selectedPart.deselect();
+            } else if (this.selectedPart instanceof Part) {
+                this.selectedPart.deselect();
+            }
+        }
+        
+        // Select the character
+        this.selectedPart = character;
+        if (character) {
+            character.select();
+            
+            // Log the character's properties for debugging
+            console.log('Selected character properties:', {
+                health: character.getHealth(),
+                maxHealth: character.getMaxHealth(),
+                position: character.group.position,
+                isGrounded: character.properties.isGrounded,
+                isJumping: character.properties.isJumping,
+                velocity: character.properties.velocity
             });
         }
     }

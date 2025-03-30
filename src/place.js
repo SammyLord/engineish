@@ -10,6 +10,7 @@ import { Part } from './Part';
 import { Folder } from './Folder';
 import { Group } from './Group';
 import { Hopperbin } from './Hopperbin';
+import { Character } from './Character';
 
 // Wait for DOM to be ready
 document.addEventListener('DOMContentLoaded', () => {
@@ -196,9 +197,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const player = engine.spawn();
         player.setPosition(0, 2, 0); // Start slightly above ground
 
-        // Create a custom hopperbin
+        // Create custom hopperbins
         console.log('Creating Redifier Hopperbin...');
-        const myTool = new Hopperbin('Redifier', {
+        const redifier = new Hopperbin('Redifier', {
             icon: '🔨',
             description: 'Makes parts red',
             requiresSelection: true,
@@ -214,10 +215,23 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        console.log('Creating Damager Hopperbin...');
+        const killer = new Hopperbin('Damager', {
+            icon: '🔨',
+            description: 'Damages your player',
+            requiresSelection: true,
+            script: (context) => {
+                console.log('Damager script executing...', context);
+                player.takeDamage(10);
+            }
+        });
+
         // Add it to a character
-        console.log('Adding Hopperbin to player...');
-        const added = player.addHopperbin(myTool);
+        console.log('Adding Hopperbins to player...');
+        const added = player.addHopperbin(redifier);
         console.log('Hopperbin added:', added);
+        const added2 = player.addHopperbin(killer);
+        console.log('Hopperbin added:', added2);
 
         // Add a test part to try the tool on
         const testPart = new Part('box', {

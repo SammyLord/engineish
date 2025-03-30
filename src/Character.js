@@ -56,6 +56,7 @@ export class Character {
             color: 0xff9999
         });
         this.parts.head.mesh.position.y = 2;
+        this.parts.head.mesh.userData.character = this;
 
         // Create body (box)
         this.parts.body = new Part('box', {
@@ -65,6 +66,7 @@ export class Character {
             color: 0x4444ff
         });
         this.parts.body.mesh.position.y = 0.75;
+        this.parts.body.mesh.userData.character = this;
 
         // Create arms
         this.parts.leftArm = new Part('box', {
@@ -75,6 +77,7 @@ export class Character {
         });
         this.parts.leftArm.mesh.position.set(-0.65, 1.5, 0);
         this.parts.leftArm.mesh.rotation.z = Math.PI / 6;
+        this.parts.leftArm.mesh.userData.character = this;
 
         this.parts.rightArm = new Part('box', {
             width: 0.3,
@@ -84,6 +87,7 @@ export class Character {
         });
         this.parts.rightArm.mesh.position.set(0.65, 1.5, 0);
         this.parts.rightArm.mesh.rotation.z = -Math.PI / 6;
+        this.parts.rightArm.mesh.userData.character = this;
 
         // Create legs
         this.parts.leftLeg = new Part('box', {
@@ -93,6 +97,7 @@ export class Character {
             color: 0x4444ff
         });
         this.parts.leftLeg.mesh.position.set(-0.2, -1.25, 0);
+        this.parts.leftLeg.mesh.userData.character = this;
 
         this.parts.rightLeg = new Part('box', {
             width: 0.3,
@@ -101,6 +106,7 @@ export class Character {
             color: 0x4444ff
         });
         this.parts.rightLeg.mesh.position.set(0.2, -1.25, 0);
+        this.parts.rightLeg.mesh.userData.character = this;
 
         // Add all parts to the group
         Object.values(this.parts).forEach(part => {
@@ -788,5 +794,24 @@ export class Character {
                 this.engine.selectPart(null);
             }
         }
+    }
+
+    // Add selection methods
+    select() {
+        // Highlight all parts of the character
+        Object.values(this.parts).forEach(part => {
+            if (part.mesh.material) {
+                part.mesh.material.emissive = new THREE.Color(0x333333);
+            }
+        });
+    }
+
+    deselect() {
+        // Remove highlight from all parts
+        Object.values(this.parts).forEach(part => {
+            if (part.mesh.material) {
+                part.mesh.material.emissive = new THREE.Color(0x000000);
+            }
+        });
     }
 } 
