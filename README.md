@@ -208,6 +208,18 @@ All parts and groups support the following properties:
 - `setScale(x, y, z)`: Set the scale in all dimensions
 - `setColor(color)`: Set the color (hex value)
 
+## Controls:
+* WASD - move
+* CTRL - jump
+* Click/drag - pan camera
+* Scroll - zoom
+* 0 through 9 - select hopperbin
+* Click - select hopperbin target
+* Space - Activate hopperbin
+* Escape - put away hopperbin
+* C - character customization.
+* N - name system (multiplayer only)
+
 ## License
 
 SPL-R5 EX (New to this codebase.)
