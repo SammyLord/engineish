@@ -1,6 +1,9 @@
 import * as THREE from 'three';
 
 export class Hopperbin {
+    // Static property to track currently equipped hopperbin
+    static currentHopperbin = null;
+
     constructor(name, options = {}) {
         this.name = name;
         this.options = {
@@ -45,13 +48,21 @@ export class Hopperbin {
     }
 
     equip() {
+        // Unequip current hopperbin if any
+        if (Hopperbin.currentHopperbin) {
+            Hopperbin.currentHopperbin.unequip();
+        }
         this.isEquipped = true;
         this.isActive = false;
+        Hopperbin.currentHopperbin = this;
     }
 
     unequip() {
         this.isEquipped = false;
         this.isActive = false;
+        if (Hopperbin.currentHopperbin === this) {
+            Hopperbin.currentHopperbin = null;
+        }
     }
 
     activate() {

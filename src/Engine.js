@@ -1288,6 +1288,14 @@ export class Engine {
     }
 
     handleClick(event) {
+        // Only allow part selection when a hopperbin is active
+        if (!Hopperbin.currentHopperbin) {
+            if (this.selectedPart) {
+                this.selectedPart.deselect();
+            }
+            return;
+        }
+
         // Calculate mouse position in normalized device coordinates (-1 to +1)
         const rect = this.renderer.domElement.getBoundingClientRect();
         this.mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -1323,7 +1331,7 @@ export class Engine {
         if (this.selectedPart) {
             this.selectedPart.deselect();
         }
-
+        
         // Select new part
         this.selectedPart = part;
         if (part) {
