@@ -21,9 +21,12 @@ export class Character {
             jump: 'control',
             colorMenu: 'c',
             nametagMenu: 'n',
-            keybindSettings: 'k'
+            keybindSettings: 'k',
+            hopperbinAction: ' ',
+            hopperbinPutAway: 'escape'
         };
         this.waitingForKey = null; // Track which keybind is being modified
+        this.loadKeybinds(); // Load saved keybinds from localStorage
         this.properties = {
             position: { x: 0, y: 0, z: 0 },
             rotation: { x: 0, y: 0, z: 0 },
@@ -158,9 +161,35 @@ export class Character {
                 return;
             }
 
+            const newKey = e.key.toLowerCase();
+            
+            // Check for key conflicts
+            if (this.checkKeyConflict(newKey, this.waitingForKey)) {
+                // Show conflict warning
+                const warning = document.createElement('div');
+                warning.textContent = `Warning: Key '${newKey}' is already bound to another action`;
+                warning.style.position = 'fixed';
+                warning.style.top = '50%';
+                warning.style.left = '50%';
+                warning.style.transform = 'translate(-50%, -50%)';
+                warning.style.backgroundColor = 'rgba(255, 0, 0, 0.8)';
+                warning.style.color = 'white';
+                warning.style.padding = '10px';
+                warning.style.borderRadius = '5px';
+                warning.style.zIndex = '1001';
+                document.body.appendChild(warning);
+                
+                // Remove warning after 2 seconds
+                setTimeout(() => warning.remove(), 2000);
+                return;
+            }
+
             // Update the keybind
-            this.keybinds[this.waitingForKey] = e.key.toLowerCase();
+            this.keybinds[this.waitingForKey] = newKey;
             this.waitingForKey = null;
+            
+            // Save to localStorage
+            this.saveKeybinds();
             
             // Update the UI
             this.updateKeybindUI();
@@ -205,19 +234,17 @@ export class Character {
             }
         }
 
-        // Other keybinds
-        if (key === ' ' && this.activeHopperbin) {
+        // Hopperbin keybinds
+        if (key === this.keybinds.hopperbinAction && this.activeHopperbin) {
             e.preventDefault();
             this.activateHopperbin();
         }
-        if (key === '-' && this.activeHopperbin) {
-            e.preventDefault();
-            this.deactivateHopperbin();
-        }
-        if (key === 'escape' && this.activeHopperbin) {
+        if (key === this.keybinds.hopperbinPutAway && this.activeHopperbin) {
             e.preventDefault();
             this.unequipHopperbin();
         }
+
+        // Other keybinds
         if ((key >= '1' && key <= '9') || key === '0') {
             const index = key === '0' ? 9 : parseInt(key) - 1;
             const hopperbins = Array.from(this.hopperbins.values());
@@ -241,8 +268,8 @@ export class Character {
         if (key === this.keybinds.moveRight) this.keys.d = false;
         if (key === this.keybinds.jump) this.keys.control = false;
 
-        // Other keybinds
-        if (key === ' ' && this.activeHopperbin) {
+        // Hopperbin keybinds
+        if (key === this.keybinds.hopperbinAction && this.activeHopperbin) {
             e.preventDefault();
             this.deactivateHopperbin();
         }
@@ -865,7 +892,7 @@ export class Character {
 
         const keybindList = document.createElement('div');
         keybindList.style.marginBottom = '10px';
-        keybindList.id = 'keybind-list'; // Add ID for updating
+        keybindList.id = 'keybind-list';
 
         // Define keybinds to display
         const keybindConfig = [
@@ -876,7 +903,9 @@ export class Character {
             { id: 'jump', name: 'Jump' },
             { id: 'colorMenu', name: 'Color Menu' },
             { id: 'nametagMenu', name: 'Nametag Menu' },
-            { id: 'keybindSettings', name: 'Keybind Settings' }
+            { id: 'keybindSettings', name: 'Keybind Settings' },
+            { id: 'hopperbinAction', name: 'Hopperbin Action' },
+            { id: 'hopperbinPutAway', name: 'Hopperbin Put Away' }
         ];
 
         // Create keybind items
@@ -913,6 +942,34 @@ export class Character {
 
         menu.appendChild(keybindList);
 
+        // Add reset button
+        const resetButton = document.createElement('button');
+        resetButton.textContent = 'Reset to Defaults';
+        resetButton.style.padding = '5px 10px';
+        resetButton.style.marginRight = '5px';
+        resetButton.style.backgroundColor = '#ff4444';
+        resetButton.style.border = 'none';
+        resetButton.style.color = 'white';
+        resetButton.style.cursor = 'pointer';
+        resetButton.style.borderRadius = '3px';
+
+        resetButton.addEventListener('click', () => {
+            this.keybinds = {
+                moveForward: 'w',
+                moveBackward: 's',
+                moveLeft: 'a',
+                moveRight: 'd',
+                jump: 'control',
+                colorMenu: 'c',
+                nametagMenu: 'n',
+                keybindSettings: 'k',
+                hopperbinAction: ' ',
+                hopperbinPutAway: 'escape'
+            };
+            this.saveKeybinds();
+            this.updateKeybindUI();
+        });
+
         const closeButton = document.createElement('button');
         closeButton.textContent = 'Close';
         closeButton.style.padding = '5px 10px';
@@ -921,6 +978,12 @@ export class Character {
         closeButton.style.color = 'white';
         closeButton.style.cursor = 'pointer';
         closeButton.style.borderRadius = '3px';
+
+        const buttonContainer = document.createElement('div');
+        buttonContainer.style.marginTop = '10px';
+        buttonContainer.appendChild(resetButton);
+        buttonContainer.appendChild(closeButton);
+        menu.appendChild(buttonContainer);
 
         closeButton.addEventListener('click', () => {
             menu.remove();
@@ -942,6 +1005,40 @@ export class Character {
                 button.textContent = this.keybinds[keybindId].toUpperCase();
                 button.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
             }
+        });
+    }
+
+    // Add new methods for keybind management
+    saveKeybinds() {
+        localStorage.setItem('engineish_keybinds', JSON.stringify(this.keybinds));
+    }
+
+    loadKeybinds() {
+        const savedKeybinds = localStorage.getItem('engineish_keybinds');
+        if (savedKeybinds) {
+            try {
+                const parsed = JSON.parse(savedKeybinds);
+                // Only load valid keybinds
+                Object.keys(this.keybinds).forEach(key => {
+                    if (parsed[key]) {
+                        this.keybinds[key] = parsed[key];
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading keybinds:', error);
+            }
+        }
+    }
+
+    checkKeyConflict(newKey, currentKeybindId) {
+        // Don't check for conflicts with the same keybind
+        if (this.keybinds[currentKeybindId] === newKey) {
+            return false;
+        }
+
+        // Check if the key is already used by another keybind
+        return Object.entries(this.keybinds).some(([id, key]) => {
+            return id !== currentKeybindId && key === newKey;
         });
     }
 } 
