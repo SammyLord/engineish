@@ -4,6 +4,8 @@ A THREE.js middleware that provides ROBLOX-like scripting capabilities for creat
 
 Download the latest stable release [here,](https://github.com/Sneed-Group/engineish/releases/latest) view a demo [here,](https://sneed-group.github.io/engineish-sample) and view the source [here.](https://github.com/Sneed-Group/engineish)
 
+You can also play our new (proprietary) game [No Person's Mine!](https://sneed-group.github.io/no-persons-mine)
+
 ## Features
 
 - Spawn characters with customizable models
