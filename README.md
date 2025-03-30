@@ -217,8 +217,9 @@ All parts and groups support the following properties:
 * Click - select hopperbin target
 * Space - Activate hopperbin
 * Escape - put away hopperbin
-* C - character customization.
-* N - name system (multiplayer only)
+* C - Character customization.
+* N - Name system (multiplayer only)
+* K - Keybind settings
 
 ## License
 

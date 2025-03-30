@@ -9,9 +9,21 @@ export class Character {
         this.engine = null; // Will be set when spawned
         this.colorMenuOpen = false; // Track if color menu is open
         this.nametagMenuOpen = false; // Track if nametag menu is open
+        this.keybindSettingsOpen = false; // Track if keybind settings menu is open
         this.nametag = null; // Store the nametag sprite
         this.hopperbins = new Map(); // Store available hopperbins
         this.activeHopperbin = null; // Currently equipped hopperbin
+        this.keybinds = {
+            moveForward: 'w',
+            moveBackward: 's',
+            moveLeft: 'a',
+            moveRight: 'd',
+            jump: 'control',
+            colorMenu: 'c',
+            nametagMenu: 'n',
+            keybindSettings: 'k'
+        };
+        this.waitingForKey = null; // Track which keybind is being modified
         this.properties = {
             position: { x: 0, y: 0, z: 0 },
             rotation: { x: 0, y: 0, z: 0 },
@@ -136,87 +148,103 @@ export class Character {
     }
 
     handleKeyDown(e) {
-        switch(e.key.toLowerCase()) {
-            case 'w': this.keys.w = true; break;
-            case 'a': this.keys.a = true; break;
-            case 's': this.keys.s = true; break;
-            case 'd': this.keys.d = true; break;
-            case 'control': this.keys.control = true; break;
-            case 'c': // Add color menu shortcut
-                // Only open menu if we're not in a text input field and menu isn't already open
-                if (!e.target.matches('input[type="text"], textarea') && !e.repeat && !this.colorMenuOpen) {
-                    console.log('Opening color menu...'); // Debug log
-                    e.preventDefault();
-                    e.stopPropagation(); // Stop event from bubbling up
-                    try {
-                        this.createColorMenu();
-                    } catch (error) {
-                        console.error('Error creating color menu:', error);
-                    }
-                }
-                break;
-            case 'n': // Add nametag menu shortcut
-                // Only open menu if we're not in a text input field and menu isn't already open
-                if (!e.target.matches('input[type="text"], textarea') && !e.repeat && !this.nametagMenuOpen && this.engine && this.engine.options.enableMultiplayer) {
-                    console.log('Opening nametag menu...'); // Debug log
-                    e.preventDefault();
-                    e.stopPropagation(); // Stop event from bubbling up
-                    try {
-                        this.createNametagMenu();
-                    } catch (error) {
-                        console.error('Error creating nametag menu:', error);
-                    }
-                }
-                break;
-            case ' ': // Space bar for hopperbin activation
-                if (this.activeHopperbin) {
-                    e.preventDefault();
-                    this.activateHopperbin();
-                }
-                break;
-            case '-': // Minus key for hopperbin deactivation
-                if (this.activeHopperbin) {
-                    e.preventDefault();
-                    this.deactivateHopperbin();
-                }
-                break;
-            case 'escape': // Escape key to unequip hopperbin
-                if (this.activeHopperbin) {
-                    e.preventDefault();
-                    this.unequipHopperbin();
-                }
-                break;
-            case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9': case '0':
-                // Number keys for quick hopperbin selection
-                const index = e.key === '0' ? 9 : parseInt(e.key) - 1;
-                const hopperbins = Array.from(this.hopperbins.values());
-                if (hopperbins[index]) {
-                    this.equipHopperbin(hopperbins[index].name);
-                }
-                break;
-            // Add test key for damage only if debug is enabled
-            case 'x':
-                if (this.engine && this.engine.options.engineDebug) {
-                    console.log('Taking test damage');
-                    this.takeDamage(50);
-                }
-                break;
+        // If we're waiting for a key, handle it first
+        if (this.waitingForKey) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Don't allow special keys or modifiers
+            if (e.key.length > 1 && !['control', 'shift', 'alt', 'meta'].includes(e.key.toLowerCase())) {
+                return;
+            }
+
+            // Update the keybind
+            this.keybinds[this.waitingForKey] = e.key.toLowerCase();
+            this.waitingForKey = null;
+            
+            // Update the UI
+            this.updateKeybindUI();
+            return;
+        }
+
+        const key = e.key.toLowerCase();
+        
+        // Movement keys
+        if (key === this.keybinds.moveForward) this.keys.w = true;
+        if (key === this.keybinds.moveBackward) this.keys.s = true;
+        if (key === this.keybinds.moveLeft) this.keys.a = true;
+        if (key === this.keybinds.moveRight) this.keys.d = true;
+        if (key === this.keybinds.jump) this.keys.control = true;
+
+        // Menu shortcuts
+        if (key === this.keybinds.colorMenu && !e.target.matches('input[type="text"], textarea') && !e.repeat && !this.colorMenuOpen) {
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+                this.createColorMenu();
+            } catch (error) {
+                console.error('Error creating color menu:', error);
+            }
+        }
+        if (key === this.keybinds.nametagMenu && !e.target.matches('input[type="text"], textarea') && !e.repeat && !this.nametagMenuOpen && this.engine && this.engine.options.enableMultiplayer) {
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+                this.createNametagMenu();
+            } catch (error) {
+                console.error('Error creating nametag menu:', error);
+            }
+        }
+        if (key === this.keybinds.keybindSettings && !e.target.matches('input[type="text"], textarea') && !e.repeat && !this.keybindSettingsOpen) {
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+                this.createKeybindSettingsMenu();
+            } catch (error) {
+                console.error('Error creating keybind settings menu:', error);
+            }
+        }
+
+        // Other keybinds
+        if (key === ' ' && this.activeHopperbin) {
+            e.preventDefault();
+            this.activateHopperbin();
+        }
+        if (key === '-' && this.activeHopperbin) {
+            e.preventDefault();
+            this.deactivateHopperbin();
+        }
+        if (key === 'escape' && this.activeHopperbin) {
+            e.preventDefault();
+            this.unequipHopperbin();
+        }
+        if ((key >= '1' && key <= '9') || key === '0') {
+            const index = key === '0' ? 9 : parseInt(key) - 1;
+            const hopperbins = Array.from(this.hopperbins.values());
+            if (hopperbins[index]) {
+                this.equipHopperbin(hopperbins[index].name);
+            }
+        }
+        if (key === 'x' && this.engine && this.engine.options.engineDebug) {
+            console.log('Taking test damage');
+            this.takeDamage(50);
         }
     }
 
     handleKeyUp(e) {
-        switch(e.key.toLowerCase()) {
-            case 'w': this.keys.w = false; break;
-            case 'a': this.keys.a = false; break;
-            case 's': this.keys.s = false; break;
-            case 'd': this.keys.d = false; break;
-            case 'control': this.keys.control = false; break;
-            case ' ': // Space bar for hopperbin deactivation
-                if (this.activeHopperbin) {
-                    e.preventDefault();
-                    this.deactivateHopperbin();
-                }
-                break;
+        const key = e.key.toLowerCase();
+        
+        // Movement keys
+        if (key === this.keybinds.moveForward) this.keys.w = false;
+        if (key === this.keybinds.moveBackward) this.keys.s = false;
+        if (key === this.keybinds.moveLeft) this.keys.a = false;
+        if (key === this.keybinds.moveRight) this.keys.d = false;
+        if (key === this.keybinds.jump) this.keys.control = false;
+
+        // Other keybinds
+        if (key === ' ' && this.activeHopperbin) {
+            e.preventDefault();
+            this.deactivateHopperbin();
         }
     }
 
@@ -811,6 +839,108 @@ export class Character {
         Object.values(this.parts).forEach(part => {
             if (part.mesh.material) {
                 part.mesh.material.emissive = new THREE.Color(0x000000);
+            }
+        });
+    }
+
+    createKeybindSettingsMenu() {
+        if (this.keybindSettingsOpen) return;
+        this.keybindSettingsOpen = true;
+
+        const menu = document.createElement('div');
+        menu.style.position = 'fixed';
+        menu.style.top = '20px';
+        menu.style.right = '20px';
+        menu.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+        menu.style.padding = '15px';
+        menu.style.borderRadius = '5px';
+        menu.style.color = 'white';
+        menu.style.fontFamily = 'Arial, sans-serif';
+        menu.style.zIndex = '1000';
+
+        const title = document.createElement('h3');
+        title.textContent = 'Keybind Settings';
+        title.style.margin = '0 0 10px 0';
+        menu.appendChild(title);
+
+        const keybindList = document.createElement('div');
+        keybindList.style.marginBottom = '10px';
+        keybindList.id = 'keybind-list'; // Add ID for updating
+
+        // Define keybinds to display
+        const keybindConfig = [
+            { id: 'moveForward', name: 'Move Forward' },
+            { id: 'moveBackward', name: 'Move Backward' },
+            { id: 'moveLeft', name: 'Move Left' },
+            { id: 'moveRight', name: 'Move Right' },
+            { id: 'jump', name: 'Jump' },
+            { id: 'colorMenu', name: 'Color Menu' },
+            { id: 'nametagMenu', name: 'Nametag Menu' },
+            { id: 'keybindSettings', name: 'Keybind Settings' }
+        ];
+
+        // Create keybind items
+        keybindConfig.forEach(config => {
+            const item = document.createElement('div');
+            item.style.marginBottom = '5px';
+            item.style.display = 'flex';
+            item.style.justifyContent = 'space-between';
+            item.style.alignItems = 'center';
+
+            const label = document.createElement('span');
+            label.textContent = config.name;
+            item.appendChild(label);
+
+            const keyButton = document.createElement('button');
+            keyButton.textContent = this.keybinds[config.id].toUpperCase();
+            keyButton.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+            keyButton.style.padding = '2px 6px';
+            keyButton.style.borderRadius = '3px';
+            keyButton.style.border = 'none';
+            keyButton.style.color = 'white';
+            keyButton.style.cursor = 'pointer';
+            keyButton.style.minWidth = '40px';
+
+            keyButton.addEventListener('click', () => {
+                this.waitingForKey = config.id;
+                keyButton.textContent = 'Press any key...';
+                keyButton.style.backgroundColor = 'rgba(255, 255, 0, 0.2)';
+            });
+
+            item.appendChild(keyButton);
+            keybindList.appendChild(item);
+        });
+
+        menu.appendChild(keybindList);
+
+        const closeButton = document.createElement('button');
+        closeButton.textContent = 'Close';
+        closeButton.style.padding = '5px 10px';
+        closeButton.style.backgroundColor = '#444';
+        closeButton.style.border = 'none';
+        closeButton.style.color = 'white';
+        closeButton.style.cursor = 'pointer';
+        closeButton.style.borderRadius = '3px';
+
+        closeButton.addEventListener('click', () => {
+            menu.remove();
+            this.keybindSettingsOpen = false;
+        });
+
+        menu.appendChild(closeButton);
+        document.body.appendChild(menu);
+    }
+
+    updateKeybindUI() {
+        const keybindList = document.getElementById('keybind-list');
+        if (!keybindList) return;
+
+        // Update all keybind buttons
+        keybindList.querySelectorAll('button').forEach(button => {
+            const keybindId = this.waitingForKey;
+            if (keybindId) {
+                button.textContent = this.keybinds[keybindId].toUpperCase();
+                button.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
             }
         });
     }
