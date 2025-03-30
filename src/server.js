@@ -25,9 +25,10 @@ function validateNickname(nickname) {
     return nickname.trim();
 }
 
-// Default health settings
+// Default health settings (matching Engine.js)
 const DEFAULT_MAX_HEALTH = 100;
 const DEFAULT_HEALTH = 100;
+const INVULNERABILITY_DURATION = 2000; // 2 seconds of invulnerability after respawn
 
 io.on('connection', (socket) => {
     console.log('Player connected:', socket.id);
@@ -37,14 +38,16 @@ io.on('connection', (socket) => {
         // Validate and store nickname
         const nickname = validateNickname(data.nickname || `Player${socket.id.slice(0, 4)}`);
 
-        // Store player data with health
+        // Store player data with health (matching Character.js properties)
         players.set(socket.id, {
             position: data.position,
             rotation: { y: 0 },
             nickname: nickname,
             health: DEFAULT_HEALTH,
             maxHealth: DEFAULT_MAX_HEALTH,
-            isDead: false
+            isDead: false,
+            isInvulnerable: false,
+            lastDamageTime: 0
         });
 
         // Broadcast to all other players that a new player has joined
@@ -84,12 +87,21 @@ io.on('connection', (socket) => {
         });
     });
 
-    // Handle health updates
+    // Handle health updates (matching Character.js takeDamage method)
     socket.on('healthUpdate', (data) => {
         const playerData = players.get(socket.id);
         if (playerData) {
+            // Check invulnerability
+            if (playerData.isInvulnerable) return;
+
+            const currentTime = Date.now();
+            if (currentTime - playerData.lastDamageTime < INVULNERABILITY_DURATION) {
+                return;
+            }
+
             // Update health
             playerData.health = Math.max(0, Math.min(data.health, playerData.maxHealth));
+            playerData.lastDamageTime = currentTime;
             playerData.isDead = playerData.health <= 0;
 
             // Broadcast health update to all players
@@ -109,7 +121,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Handle player respawn
+    // Handle player respawn (matching Engine.js respawnPlayer method)
     socket.on('playerRespawned', (data) => {
         const playerData = players.get(socket.id);
         if (playerData) {
@@ -117,6 +129,8 @@ io.on('connection', (socket) => {
             playerData.health = playerData.maxHealth;
             playerData.isDead = false;
             playerData.position = data.position;
+            playerData.isInvulnerable = true;
+            playerData.lastDamageTime = Date.now();
 
             // Broadcast respawn to all players
             io.emit('playerRespawned', {
@@ -125,6 +139,13 @@ io.on('connection', (socket) => {
                 health: playerData.health,
                 maxHealth: playerData.maxHealth
             });
+
+            // Remove invulnerability after duration
+            setTimeout(() => {
+                if (playerData) {
+                    playerData.isInvulnerable = false;
+                }
+            }, INVULNERABILITY_DURATION);
         }
     });
 
