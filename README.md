@@ -160,7 +160,7 @@ player.sync({
 - `cone`: Conical shape
 - `truss`: Simple truss structure
 
-## Tools and Hopperbins
+## Tools and Hopperbins (Code under CC0)
 
 The engine supports custom tools through the Hopperbin system. You can create and customize tools for your place:
 
