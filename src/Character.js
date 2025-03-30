@@ -736,6 +736,11 @@ export class Character {
             }
             this.activeHopperbin = hopperbin;
             hopperbin.equip();
+            
+            // Show hopperbin info
+            if (this.engine) {
+                this.engine.showHopperbinInfo(hopperbin.name, hopperbin.options.description);
+            }
             return true;
         }
         return false;
@@ -745,6 +750,11 @@ export class Character {
         if (this.activeHopperbin) {
             this.activeHopperbin.unequip();
             this.activeHopperbin = null;
+            
+            // Hide hopperbin info
+            if (this.engine) {
+                this.engine.hideHopperbinInfo();
+            }
             return true;
         }
         return false;

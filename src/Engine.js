@@ -119,6 +119,9 @@ export class Engine {
 
         // Add click event listener for part selection
         this.renderer.domElement.addEventListener('click', (event) => this.handleClick(event));
+
+        // Create hopperbin info UI
+        this.createHopperbinInfoUI();
     }
 
     createNicknameUI() {
@@ -1344,5 +1347,81 @@ export class Engine {
                 color: part.mesh.material.color.getHexString()
             });
         }
+    }
+
+    // Add new method for hopperbin info UI
+    createHopperbinInfoUI() {
+        const infoContainer = document.createElement('div');
+        infoContainer.style.position = 'fixed';
+        infoContainer.style.top = '20px';
+        infoContainer.style.right = '20px';
+        infoContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        infoContainer.style.padding = '10px';
+        infoContainer.style.borderRadius = '5px';
+        infoContainer.style.color = 'white';
+        infoContainer.style.fontFamily = 'Arial, sans-serif';
+        infoContainer.style.zIndex = '1000';
+        infoContainer.style.display = 'none';
+        infoContainer.style.transition = 'opacity 0.3s ease-in-out';
+
+        const title = document.createElement('div');
+        title.style.fontSize = '16px';
+        title.style.fontWeight = 'bold';
+        title.style.marginBottom = '5px';
+
+        const description = document.createElement('div');
+        description.style.fontSize = '14px';
+        description.style.opacity = '0.8';
+
+        infoContainer.appendChild(title);
+        infoContainer.appendChild(description);
+        document.body.appendChild(infoContainer);
+
+        this.hopperbinInfoUI = {
+            container: infoContainer,
+            title: title,
+            description: description,
+            timeout: null
+        };
+    }
+
+    showHopperbinInfo(name, description) {
+        if (!this.hopperbinInfoUI) return;
+
+        // Clear any existing timeout
+        if (this.hopperbinInfoUI.timeout) {
+            clearTimeout(this.hopperbinInfoUI.timeout);
+        }
+
+        // Update content
+        this.hopperbinInfoUI.title.textContent = name;
+        this.hopperbinInfoUI.description.textContent = description;
+
+        // Show the container
+        this.hopperbinInfoUI.container.style.display = 'block';
+        this.hopperbinInfoUI.container.style.opacity = '1';
+
+        // Set timeout to hide after 5 seconds
+        this.hopperbinInfoUI.timeout = setTimeout(() => {
+            this.hopperbinInfoUI.container.style.opacity = '0';
+            setTimeout(() => {
+                this.hopperbinInfoUI.container.style.display = 'none';
+            }, 300);
+        }, 5000);
+    }
+
+    hideHopperbinInfo() {
+        if (!this.hopperbinInfoUI) return;
+
+        // Clear any existing timeout
+        if (this.hopperbinInfoUI.timeout) {
+            clearTimeout(this.hopperbinInfoUI.timeout);
+        }
+
+        // Hide the container
+        this.hopperbinInfoUI.container.style.opacity = '0';
+        setTimeout(() => {
+            this.hopperbinInfoUI.container.style.display = 'none';
+        }, 300);
     }
 } 
