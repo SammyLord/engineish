@@ -8,6 +8,7 @@ import { SpawnPoint } from './SpawnPoint';
 import { Scripting } from './Scripting';
 import { io } from 'socket.io-client';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader';
+import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader';
 
 export class Engine {
     constructor(container, options = {}) {
@@ -1124,55 +1125,109 @@ export class Engine {
 
     loadOBJ(url, options = {}) {
         return new Promise((resolve, reject) => {
-            const loader = new OBJLoader();
+            const objLoader = new OBJLoader();
+            const mtlLoader = new MTLLoader();
             
-            loader.load(
-                url,
-                (object) => {
-                    // Create a group to hold the loaded object
-                    const group = new THREE.Group();
-                    
-                    // Clone the loaded object to avoid sharing materials
-                    const clonedObject = object.clone();
-                    
-                    // Apply default material if none exists
-                    clonedObject.traverse((child) => {
-                        if (child instanceof THREE.Mesh) {
-                            if (!child.material) {
-                                child.material = new THREE.MeshStandardMaterial({
-                                    color: options.color || 0x808080,
-                                    metalness: 0.5,
-                                    roughness: 0.5
-                                });
+            // If an MTL URL is provided, load it first
+            if (options.mtlUrl) {
+                mtlLoader.load(
+                    options.mtlUrl,
+                    (materials) => {
+                        materials.preload();
+                        objLoader.setMaterials(materials);
+                        
+                        // Load the OBJ file after materials are loaded
+                        objLoader.load(
+                            url,
+                            (object) => {
+                                // Create a group to hold the loaded object
+                                const group = new THREE.Group();
+                                
+                                // Clone the loaded object to avoid sharing materials
+                                const clonedObject = object.clone();
+                                
+                                // Add the cloned object to our group
+                                group.add(clonedObject);
+                                
+                                // Center the object if requested
+                                if (options.center) {
+                                    const box = new THREE.Box3().setFromObject(group);
+                                    const center = box.getCenter(new THREE.Vector3());
+                                    group.position.sub(center);
+                                }
+                                
+                                // Scale the object if requested
+                                if (options.scale) {
+                                    group.scale.set(options.scale, options.scale, options.scale);
+                                }
+                                
+                                resolve(group);
+                            },
+                            (xhr) => {
+                                console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+                            },
+                            (error) => {
+                                console.error('Error loading OBJ:', error);
+                                reject(error);
                             }
+                        );
+                    },
+                    undefined,
+                    (error) => {
+                        console.error('Error loading MTL:', error);
+                        reject(error);
+                    }
+                );
+            } else {
+                // If no MTL file is provided, load OBJ with default material
+                objLoader.load(
+                    url,
+                    (object) => {
+                        // Create a group to hold the loaded object
+                        const group = new THREE.Group();
+                        
+                        // Clone the loaded object to avoid sharing materials
+                        const clonedObject = object.clone();
+                        
+                        // Apply default material if none exists
+                        clonedObject.traverse((child) => {
+                            if (child instanceof THREE.Mesh) {
+                                if (!child.material) {
+                                    child.material = new THREE.MeshStandardMaterial({
+                                        color: options.color || 0x808080,
+                                        metalness: 0.5,
+                                        roughness: 0.5
+                                    });
+                                }
+                            }
+                        });
+                        
+                        // Add the cloned object to our group
+                        group.add(clonedObject);
+                        
+                        // Center the object if requested
+                        if (options.center) {
+                            const box = new THREE.Box3().setFromObject(group);
+                            const center = box.getCenter(new THREE.Vector3());
+                            group.position.sub(center);
                         }
-                    });
-                    
-                    // Add the cloned object to our group
-                    group.add(clonedObject);
-                    
-                    // Center the object if requested
-                    if (options.center) {
-                        const box = new THREE.Box3().setFromObject(group);
-                        const center = box.getCenter(new THREE.Vector3());
-                        group.position.sub(center);
+                        
+                        // Scale the object if requested
+                        if (options.scale) {
+                            group.scale.set(options.scale, options.scale, options.scale);
+                        }
+                        
+                        resolve(group);
+                    },
+                    (xhr) => {
+                        console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+                    },
+                    (error) => {
+                        console.error('Error loading OBJ:', error);
+                        reject(error);
                     }
-                    
-                    // Scale the object if requested
-                    if (options.scale) {
-                        group.scale.set(options.scale, options.scale, options.scale);
-                    }
-                    
-                    resolve(group);
-                },
-                (xhr) => {
-                    console.log((xhr.loaded / xhr.total * 100) + '% loaded');
-                },
-                (error) => {
-                    console.error('Error loading OBJ:', error);
-                    reject(error);
-                }
-            );
+                );
+            }
         });
     }
 
