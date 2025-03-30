@@ -2,7 +2,7 @@
 
 A THREE.js middleware that provides ROBLOX-like scripting capabilities for creating 3D games and experiences.
 
-Download the latest stable release [https://github.com/Sneed-Group/engineish/releases/latest](here) and view the source [here.](https://github.com/Sneed-Group/engineish)
+Download the latest stable release [here,]((https://github.com/Sneed-Group/engineish/releases/latest) view a demo [here,](https://sneedgroup.github.io/engineish-sample) and view the source [here.](https://github.com/Sneed-Group/engineish)
 
 ## Features
 
